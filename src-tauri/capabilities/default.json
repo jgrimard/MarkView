@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "App shell windows",
+  "windows": ["*"],
+  "permissions": ["core:default"]
+}

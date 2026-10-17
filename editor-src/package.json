@@ -1,0 +1,20 @@
+{
+  "name": "markview-editor",
+  "private": true,
+  "description": "Builds ui/editor.bundle.js (CodeMirror 6) for MarkView. Run: npm install && npm run build",
+  "scripts": {
+    "build": "esbuild editor.mjs --bundle --minify --format=iife --target=es2020 --outfile=../ui/editor.bundle.js"
+  },
+  "devDependencies": {
+    "codemirror": "6.0.1",
+    "@codemirror/lang-markdown": "6.3.1",
+    "@codemirror/language": "6.10.8",
+    "@codemirror/state": "6.5.0",
+    "@codemirror/view": "6.36.1",
+    "@codemirror/commands": "6.7.1",
+    "@codemirror/search": "6.5.8",
+    "@codemirror/theme-one-dark": "6.1.2",
+    "@lezer/highlight": "1.2.1",
+    "esbuild": "0.24.2"
+  }
+}

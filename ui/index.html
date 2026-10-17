@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MarkView</title>
+    <link rel="stylesheet" href="shell.css" />
+</head>
+<body>
+    <!-- Tab strip: shown when "Open files in tabs" is on (or a window holds several documents) -->
+    <div id="tabstrip" hidden>
+        <div id="tabs" role="tablist"></div>
+        <button id="add-tab" class="tab-add" title="New document (Ctrl+N)"><span class="glyph">&#xE710;</span></button>
+    </div>
+
+    <div id="toolbar" role="toolbar">
+        <div class="tools">
+            <button class="tb" data-cmd="back" id="btn-back" title="Back (Alt+Left)"><span class="glyph">&#xE72B;</span></button>
+            <button class="tb" data-cmd="forward" id="btn-forward" title="Forward (Alt+Right)"><span class="glyph">&#xE72A;</span></button>
+            <span class="sep"></span>
+            <button class="tb" data-cmd="open" title="Open (Ctrl+O)"><span class="glyph">&#xE8E5;</span></button>
+            <button class="tb" data-menu="recent" title="Recent files"><span class="glyph">&#xE81C;</span></button>
+            <button class="tb" data-cmd="new" title="New document (Ctrl+N)"><span class="glyph">&#xE8A5;</span></button>
+            <button class="tb" data-cmd="save" id="btn-save" title="Save (Ctrl+S)"><span class="glyph">&#xE74E;</span></button>
+            <span class="sep"></span>
+            <button class="tb toggle" data-cmd="modeView" id="btn-view" title="Read (Ctrl+1)"><span class="glyph">&#xE890;</span></button>
+            <button class="tb toggle" data-cmd="modeSplit" id="btn-split" title="Edit with live preview (Ctrl+2)"><span class="glyph">&#xE89A;</span></button>
+            <button class="tb toggle" data-cmd="modeEdit" id="btn-edit" title="Edit only (Ctrl+3)"><span class="glyph">&#xE70F;</span></button>
+            <span class="sep"></span>
+            <button class="tb toggle" data-cmd="toggleToc" id="btn-toc" title="Table of contents (Ctrl+T)"><span class="glyph">&#xE8E4;</span></button>
+            <button class="tb" data-cmd="zoomOut" title="Zoom out (Ctrl+-)"><span class="glyph">&#xE71F;</span></button>
+            <button class="tb zoom-label" data-cmd="zoomReset" id="btn-zoom" title="Reset zoom (Ctrl+0)">100%</button>
+            <button class="tb" data-cmd="zoomIn" title="Zoom in (Ctrl+=)"><span class="glyph">&#xE8A3;</span></button>
+            <span class="sep"></span>
+            <button class="tb" data-menu="theme" title="Theme"><span class="glyph">&#xE790;</span></button>
+            <button class="tb" data-cmd="print" title="Print (Ctrl+P)"><span class="glyph">&#xE749;</span></button>
+            <button class="tb" data-cmd="exportPdf" title="Export to PDF"><span class="glyph">&#xEA90;</span></button>
+            <button class="tb" data-menu="more" title="More"><span class="glyph">&#xE712;</span></button>
+        </div>
+        <div id="status"></div>
+    </div>
+
+    <main id="docs"></main>
+
+    <section id="empty" hidden>
+        <div class="empty-inner">
+            <img src="app-icon.png" alt="" width="72" height="72" />
+            <h1>MarkView</h1>
+            <p class="secondary">Open a Markdown file or drop one anywhere on this window.</p>
+            <div class="empty-actions">
+                <button class="btn accent" data-cmd="open"><span class="glyph">&#xE8E5;</span>Open file</button>
+                <button class="btn" data-cmd="new"><span class="glyph">&#xE8A5;</span>New document</button>
+            </div>
+            <h2 id="recent-header" hidden>Recent</h2>
+            <div id="recent-list"></div>
+        </div>
+    </section>
+
+    <div id="menu" class="menu" hidden role="menu"></div>
+    <div id="dialog-layer" hidden>
+        <div class="dialog" role="dialog" aria-modal="true">
+            <div class="dialog-body">
+                <h2 class="dialog-title"></h2>
+                <div class="dialog-content"></div>
+            </div>
+            <div class="dialog-footer"></div>
+        </div>
+    </div>
+
+    <script src="keys.js"></script>
+    <script src="editor.bundle.js"></script>
+    <script src="shell.js"></script>
+</body>
+</html>

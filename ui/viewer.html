@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{THEME}}">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{TITLE}}</title>
+    <link rel="stylesheet" id="md-light" href="http://mdfile.localhost/__app/vendor/github-markdown-css/github-markdown-light.css" media="{{LIGHT_MEDIA}}" />
+    <link rel="stylesheet" id="md-dark" href="http://mdfile.localhost/__app/vendor/github-markdown-css/github-markdown-dark.css" media="{{DARK_MEDIA}}" />
+    <link rel="stylesheet" id="hl-light" href="http://mdfile.localhost/__app/vendor/highlightjs/github-light.min.css" media="{{LIGHT_MEDIA}}" />
+    <link rel="stylesheet" id="hl-dark" href="http://mdfile.localhost/__app/vendor/highlightjs/github-dark.min.css" media="{{DARK_MEDIA}}" />
+    <link rel="stylesheet" href="http://mdfile.localhost/__app/vendor/katex/katex.min.css" />
+    <link rel="stylesheet" href="http://mdfile.localhost/__app/viewer.css" />
+</head>
+<body>
+    <nav id="toc" aria-label="Table of contents">
+        <div class="toc-title">Contents</div>
+        <ul id="toc-list"></ul>
+    </nav>
+    <main id="content">
+        <article id="article" class="markdown-body">{{CONTENT}}</article>
+    </main>
+    <div id="lightbox" hidden><img alt="" /></div>
+
+    <script type="application/json" id="mv-config">{{CONFIG}}</script>
+    <script src="http://mdfile.localhost/__app/vendor/highlightjs/highlight.min.js"></script>
+    <script src="http://mdfile.localhost/__app/vendor/highlightjs/extra-languages.min.js"></script>
+    <script src="http://mdfile.localhost/__app/keys.js"></script>
+    <script src="http://mdfile.localhost/__app/viewer.js"></script>
+</body>
+</html>

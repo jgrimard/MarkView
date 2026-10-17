@@ -1,0 +1,11 @@
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Editor bundle build
+editor-src/node_modules/
+
+dist/
+
+# Old WinUI prototype (kept locally, not part of the repository)
+OLD/

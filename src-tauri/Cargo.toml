@@ -1,0 +1,40 @@
+[package]
+name = "markview"
+version = "1.0.0"
+description = "MarkView - a Markdown viewer and editor for Windows"
+license = "MIT"
+repository = "https://github.com/jgrimard/MarkView"
+authors = ["jgrimard"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+comrak = { version = "0.56", default-features = false, features = ["shortcodes"] }
+regex = "1"
+percent-encoding = "2"
+notify = { version = "8", default-features = false }
+rfd = { version = "0.17", default-features = false }
+open = "5"
+window-vibrancy = "0.8"
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.56"
+# Same versions as Tauri's WebView2 backend (wry), so its COM types can be used for PDF export.
+webview2-com = "0.39"
+windows = { version = "0.62", features = ["Win32_UI_Shell", "Win32_Foundation"] }
+windows-core = "0.62"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
