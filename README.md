@@ -12,7 +12,9 @@
 [![Size: ~7 MB](https://img.shields.io/badge/download-~7%20MB-2ea44f)](https://github.com/jgrimard/MarkView/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-[Download](https://github.com/jgrimard/MarkView/releases/latest) ·
+<a href="https://apps.microsoft.com/detail/9P0671Z6HDCP?mode=direct"><img src="https://get.microsoft.com/images/en-us%20dark.svg" alt="Get it from Microsoft" width="200" /></a>
+
+[Download the exe](https://github.com/jgrimard/MarkView/releases/latest) ·
 [Features](#features) ·
 [Screenshots](#screenshots) ·
 [Keyboard shortcuts](#keyboard-shortcuts) ·
@@ -89,6 +91,13 @@ The whole app is a **single ~7 MB executable**. There's no installer and no runt
 </div>
 
 ## Installation
+
+### Microsoft Store (recommended)
+
+[Get MarkView from the Microsoft Store](https://apps.microsoft.com/detail/9P0671Z6HDCP?mode=direct). The Store
+keeps it up to date and adds it to the **Open with** list for `.md` files, with no folder to manage.
+
+### Portable exe
 
 1. Download `MarkView.exe` from the [latest release](https://github.com/jgrimard/MarkView/releases/latest).
 2. Put it in a permanent folder, for example `%LOCALAPPDATA%\Programs\MarkView\`.
