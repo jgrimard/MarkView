@@ -187,8 +187,8 @@ npm run build
 To build the Microsoft Store package (needs the Windows SDK for `makeappx` and `makepri`):
 
 ```powershell
-.\packaginguild-msix.ps1            # -> dist\MarkView_<version>_x64.msix, ready for Partner Center
-.\packaginguild-msix.ps1 -Install   # also registers it for this user to try it (needs Developer Mode)
+.\packaging\build-msix.ps1            # -> dist\MarkView_<version>_x64.msix, ready for Partner Center
+.\packaging\build-msix.ps1 -Install   # also registers it for this user to try it (needs Developer Mode)
 ```
 
 The Store build gets its `.md` association from [`packaging/AppxManifest.xml`](packaging/AppxManifest.xml)
