@@ -693,7 +693,10 @@
                 action: () => invoke('update_settings', { patch: { useTabs: !settings.useTabs } }),
             },
             { separator: true },
-            { label: assocLabel, action: () => registerAssociation(assoc.registeredExe) },
+            // The Store build's association comes from its package; Windows Settings picks the default.
+            assoc.packaged
+                ? { label: 'Set as default .md app...', action: () => invoke('open_default_apps') }
+                : { label: assocLabel, action: () => registerAssociation(assoc.registeredExe) },
             assoc.registeredExe ? { label: 'Remove .md file association', action: removeAssociation } : null,
             { separator: true },
             { label: 'Keyboard shortcuts', action: showShortcuts },

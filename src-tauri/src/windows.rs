@@ -54,14 +54,17 @@ pub fn create_window(app: &AppHandle, cascade_from: Option<&str>, initial: Vec<O
     };
 
     let settings = app.state::<SettingsStore>().get();
-    let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
+    let mut builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
         .title("MarkView")
         .inner_size(1280.0, 860.0)
         .min_inner_size(560.0, 360.0)
         .visible(false)
         .transparent(true)
-        .theme(window_theme(&settings.theme))
-        .build()?;
+        .theme(window_theme(&settings.theme));
+    if let Some(dir) = crate::package::webview_data_dir() {
+        builder = builder.data_directory(dir);
+    }
+    let window = builder.build()?;
 
     place_window(app, &window, cascade_from, settings.window);
 

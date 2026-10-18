@@ -22,7 +22,7 @@ pub async fn export(app: AppHandle, doc_path: String, text: String, out: String)
 
     let out_path = out.clone();
     let tx_load = tx.clone();
-    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(url.parse().map_err(|e| format!("{e}"))?))
+    let mut builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(url.parse().map_err(|e| format!("{e}"))?))
         .title("MarkView PDF export")
         .inner_size(1000.0, 1200.0)
         .position(-32000.0, -32000.0)
@@ -44,9 +44,11 @@ pub async fn export(app: AppHandle, doc_path: String, text: String, out: String)
                     let _ = tx_err.send(Err(e.to_string()));
                 }
             });
-        })
-        .build()
-        .map_err(|e| e.to_string())?;
+        });
+    if let Some(dir) = crate::package::webview_data_dir() {
+        builder = builder.data_directory(dir);
+    }
+    let window = builder.build().map_err(|e| e.to_string())?;
     drop(tx);
 
     let result = tauri::async_runtime::spawn_blocking(move || {

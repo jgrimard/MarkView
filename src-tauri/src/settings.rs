@@ -51,7 +51,11 @@ pub struct SettingsStore(pub Mutex<Settings>);
 
 pub fn data_dir() -> PathBuf {
     let base = std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
-    let dir = base.join("MarkView");
+    // The Store build keeps its settings in the package's own LocalState, which Windows removes on uninstall.
+    let dir = match crate::package::family_name() {
+        Some(family) => base.join("Packages").join(family).join("LocalState"),
+        None => base.join("MarkView"),
+    };
     let _ = std::fs::create_dir_all(&dir);
     dir
 }

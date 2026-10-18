@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod assoc;
+mod package;
 mod pdf;
 mod render;
 mod server;
@@ -369,6 +370,9 @@ fn accent_colors() -> Option<serde_json::Value> {
 /// { registered: points at this exe, registeredExe: whatever the registration points at (may be a moved copy) }
 #[tauri::command]
 fn association_status() -> serde_json::Value {
+    if package::is_packaged() {
+        return serde_json::json!({ "packaged": true });
+    }
     serde_json::json!({
         "registered": assoc::is_registered(),
         "registeredExe": assoc::registered_exe(),
@@ -386,7 +390,8 @@ fn register_association() -> Result<String, String> {
 #[tauri::command]
 fn association_prompt(app: AppHandle) -> Option<serde_json::Value> {
     static ASKED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-    if app.state::<SettingsStore>().get().assoc_prompt == "never" || assoc::is_registered() {
+    // The Store build is associated with .md files by its package manifest.
+    if package::is_packaged() || app.state::<SettingsStore>().get().assoc_prompt == "never" || assoc::is_registered() {
         return None;
     }
     if ASKED.swap(true, std::sync::atomic::Ordering::SeqCst) {
@@ -417,7 +422,11 @@ fn unregister_association() -> Result<(), String> {
 
 #[tauri::command]
 fn open_default_apps() {
-    let _ = open::that_detached("ms-settings:defaultapps?registeredAppUser=MarkView");
+    let page = match package::app_user_model_id() {
+        Some(aumid) => format!("ms-settings:defaultapps?registeredAUMID={aumid}"),
+        None => "ms-settings:defaultapps?registeredAppUser=MarkView".into(),
+    };
+    let _ = open::that_detached(page);
 }
 
 #[tauri::command]
@@ -426,6 +435,7 @@ fn app_info() -> serde_json::Value {
     info["version"] = serde_json::json!(env!("CARGO_PKG_VERSION"));
     info["repository"] = serde_json::json!(env!("CARGO_PKG_REPOSITORY"));
     info["dataDir"] = serde_json::json!(settings::data_dir().to_string_lossy());
+    info["packaged"] = serde_json::json!(package::is_packaged());
     info
 }
 

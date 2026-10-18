@@ -175,6 +175,16 @@ npm install
 npm run build
 ```
 
+To build the Microsoft Store package (needs the Windows SDK for `makeappx` and `makepri`):
+
+```powershell
+.\packaginguild-msix.ps1            # -> dist\MarkView_<version>_x64.msix, ready for Partner Center
+.\packaginguild-msix.ps1 -Install   # also registers it for this user to try it (needs Developer Mode)
+```
+
+The Store build gets its `.md` association from [`packaging/AppxManifest.xml`](packaging/AppxManifest.xml)
+instead of the registry, and keeps its settings in its package folder.
+
 ### Project layout
 
 | Path | Contents |
@@ -182,6 +192,7 @@ npm run build
 | [`src-tauri/`](src-tauri) | Rust app: protocol handler, Markdown rendering, windows, file watching, PDF export, file association |
 | [`ui/`](ui) | Front end embedded in the exe: app shell, preview page, vendored libraries |
 | [`editor-src/`](editor-src) | Source for the CodeMirror 6 editor bundle |
+| [`packaging/`](packaging) | Microsoft Store (MSIX) manifest and build script |
 | [`samples/`](samples) | Test documents covering every image-path case, plus the showcase used for the screenshots |
 | [`docs/images/`](docs/images) | Logo and screenshots for this README |
 
