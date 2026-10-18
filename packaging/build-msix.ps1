@@ -14,7 +14,7 @@
 
 .PARAMETER Install
     Also register the unpacked layout for the current user (needs Developer Mode), to try the packaged
-    build locally. Remove it again with: Get-AppxPackage *MarkViewMarkdownViewer* | Remove-AppxPackage
+    build locally. Remove it again with: Get-AppxPackage jgrimard.388874D7F8808 | Remove-AppxPackage
 
 .EXAMPLE
     .\packaging\build-msix.ps1
@@ -137,7 +137,8 @@ if ($LASTEXITCODE) { $output; throw "makeappx pack failed ($LASTEXITCODE)" }
 
 if ($Install) {
     Step 'Registering the layout for this user'
-    Get-AppxPackage -Name 'jgrimard.MarkViewMarkdownViewer' | Remove-AppxPackage
+    $name = ([xml]$manifest).Package.Identity.Name
+    Get-AppxPackage -Name $name | Remove-AppxPackage
     Add-AppxPackage -Register (Join-Path $layout 'AppxManifest.xml')
 }
 

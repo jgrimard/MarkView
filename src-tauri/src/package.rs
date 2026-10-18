@@ -24,7 +24,7 @@ mod imp {
         Some(String::from_utf16_lossy(&buf[..(len as usize).saturating_sub(1)]))
     }
 
-    /// e.g. `jgrimard.MarkViewMarkdownViewer_wgz7aqx4kv1ge`, or None when not running from a package.
+    /// e.g. `jgrimard.388874D7F8808_wgz7aqx4kv1ge`, or None when not running from a package.
     pub fn family_name() -> Option<&'static str> {
         static FAMILY: OnceLock<Option<String>> = OnceLock::new();
         FAMILY.get_or_init(|| query(GetCurrentPackageFamilyName)).as_deref()

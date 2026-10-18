@@ -9,7 +9,7 @@
   IgnorableNamespaces="uap uap3 rescap">
 
   <Identity
-    Name="jgrimard.MarkViewMarkdownViewer"
+    Name="jgrimard.388874D7F8808"
     Publisher="CN=FE8851EF-8152-4529-A1B8-57EB4F92A170"
     Version="{{VERSION}}"
     ProcessorArchitecture="{{ARCH}}" />

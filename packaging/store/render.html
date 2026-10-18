@@ -1,0 +1,60 @@
+<!doctype html>
+<!-- Store listing art, rendered by render-store-art.ps1 with headless Edge.
+     ?art=icon|poster|hero picks the layout; the viewport size sets the output size. -->
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .logo { width: 100%; height: 100%; display: block; }
+
+    body.poster {
+        background: linear-gradient(180deg, #2761e9 0%, #5541c9 100%);
+        font-family: 'Segoe UI Variable Display', 'Segoe UI', sans-serif;
+        color: #fff;
+    }
+    body.poster .mark { width: 52vw; height: 52vw; margin-top: -8vh; }
+    body.poster h1 { margin: 9vh 0 0; font-size: 12.5vw; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+    body.poster p { margin: 2.6vh 0 0; font-size: 5.6vw; font-weight: 400; opacity: 0.88; }
+
+    /* Super hero art: no product title allowed. The Store may overlay the bottom third and crop the top and
+       bottom, so the windows are centred with the key content in the upper two-thirds. */
+    body.hero {
+        display: block;
+        position: relative;
+        background:
+            radial-gradient(ellipse 60% 70% at 50% 40%, rgba(255, 255, 255, 0.16), transparent 70%),
+            linear-gradient(135deg, #2761e9 0%, #4a4ad6 55%, #5541c9 100%);
+    }
+    body.hero .window {
+        position: absolute;
+        width: 46vw;
+        border-radius: 0.45vw;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        box-shadow: 0 1.6vw 4.5vw rgba(10, 10, 60, 0.5), 0 0.3vw 1vw rgba(10, 10, 60, 0.3);
+    }
+    body.hero .back { left: 14vw; top: 7vh; }
+    body.hero .front { right: 14vw; top: 30vh; }
+</style>
+</head>
+<body>
+<script>
+    const art = new URLSearchParams(location.search).get('art') || 'icon';
+    document.body.className = art;
+    // The M and arrow from logo.svg, without the rounded tile.
+    const mark = '<svg class="mark" viewBox="95 151 334.5 218.5" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">' +
+        '<path fill="#fff" d="M95 151h50l49.5 76 49.5-76h50v219h-49V237l-50.5 72-50.5-72v133H95z"/>' +
+        '<path fill="#fff" d="M350 151h45v119h34.5l-57 99.5-57-99.5H350z"/></svg>';
+    if (art === 'icon') {
+        document.body.innerHTML = '<img class="logo" src="../../docs/images/logo.svg" alt="" />';
+    } else if (art === 'hero') {
+        document.body.innerHTML =
+            '<img class="window back" src="../../docs/images/screenshot-dark-editor.png" alt="" />' +
+            '<img class="window front" src="../../docs/images/screenshot-light.png" alt="" />';
+    } else {
+        document.body.innerHTML = mark + '<h1>MarkView</h1><p>Markdown Viewer</p>';
+    }
+</script>
+</body>
+</html>
