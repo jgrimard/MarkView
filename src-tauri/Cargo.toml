@@ -1,6 +1,6 @@
 [package]
 name = "markview"
-version = "1.0.0"
+version = "1.0.1"
 description = "MarkView - a Markdown viewer and editor for Windows"
 license = "MIT"
 repository = "https://github.com/jgrimard/MarkView"
