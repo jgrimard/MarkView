@@ -215,7 +215,10 @@ fn open_link(url: String) -> LinkResult {
 
 #[tauri::command]
 fn reveal(path: String) {
-    let _ = std::process::Command::new("explorer.exe").arg(format!("/select,{path}")).spawn();
+    use std::os::windows::process::CommandExt;
+    // Explorer only understands `/select,"path"`; `.arg()` would quote the whole switch when the path has spaces.
+    let path = path.replace('/', "\\");
+    let _ = std::process::Command::new("explorer.exe").raw_arg(format!("/select,\"{path}\"")).spawn();
 }
 
 // ---------------------------------------------------------------- windows
