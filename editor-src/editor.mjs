@@ -22,7 +22,8 @@ const baseTheme = EditorView.theme({
 const lightTheme = EditorView.theme({
     '&': { backgroundColor: '#ffffff', color: '#1f2328' },
     '.cm-gutters': { backgroundColor: '#ffffff', color: '#8c959f' },
-    '.cm-activeLine': { backgroundColor: '#f6f8fa' },
+    // Translucent: the selection is drawn beneath the lines, so an opaque colour would hide it.
+    '.cm-activeLine': { backgroundColor: 'rgba(175, 184, 193, 0.15)' },
     '.cm-activeLineGutter': { backgroundColor: '#f6f8fa', color: '#1f2328' },
     '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': { backgroundColor: '#b6d6fd !important' },
     '.cm-cursor': { borderLeftColor: '#1f2328' },
@@ -31,7 +32,7 @@ const lightTheme = EditorView.theme({
 const darkTheme = EditorView.theme({
     '&': { backgroundColor: '#0d1117', color: '#e6edf3' },
     '.cm-gutters': { backgroundColor: '#0d1117', color: '#6e7681' },
-    '.cm-activeLine': { backgroundColor: '#161b22' },
+    '.cm-activeLine': { backgroundColor: 'rgba(110, 118, 129, 0.1)' },
     '.cm-activeLineGutter': { backgroundColor: '#161b22', color: '#e6edf3' },
     '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': { backgroundColor: '#264f78 !important' },
     '.cm-cursor': { borderLeftColor: '#e6edf3' },
