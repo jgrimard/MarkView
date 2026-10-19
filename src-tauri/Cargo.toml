@@ -29,7 +29,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 winreg = "0.56"
 # Same versions as Tauri's WebView2 backend (wry), so its COM types can be used for PDF export.
 webview2-com = "0.39"
-windows = { version = "0.62", features = ["Win32_UI_Shell", "Win32_Foundation", "Win32_Storage_Packaging_Appx"] }
+windows = { version = "0.62", features = ["Win32_UI_Shell", "Win32_Foundation", "Win32_Globalization", "Win32_Storage_Packaging_Appx"] }
 windows-core = "0.62"
 
 [profile.release]

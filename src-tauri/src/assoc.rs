@@ -29,15 +29,16 @@ mod imp {
         registered_exe().is_some_and(|r| r.eq_ignore_ascii_case(&exe()))
     }
 
-    pub fn register() -> std::io::Result<()> {
+    /// `file_type` and `description` are shown by Explorer and Settings, in the UI language.
+    pub fn register(file_type: &str, description: &str) -> std::io::Result<()> {
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
         let exe = exe();
         let command = format!("\"{exe}\" \"%1\"");
         let icon = format!("\"{exe}\",0");
 
         let (prog, _) = hkcu.create_subkey(format!(r"Software\Classes\{PROG_ID}"))?;
-        prog.set_value("", &"Markdown Document")?;
-        prog.set_value("FriendlyTypeName", &"Markdown Document")?;
+        prog.set_value("", &file_type)?;
+        prog.set_value("FriendlyTypeName", &file_type)?;
         prog.create_subkey("DefaultIcon")?.0.set_value("", &icon)?;
         prog.create_subkey(r"shell\open\command")?.0.set_value("", &command)?;
 
@@ -51,7 +52,7 @@ mod imp {
 
         let (caps, _) = hkcu.create_subkey(CAPABILITIES)?;
         caps.set_value("ApplicationName", &APP_NAME)?;
-        caps.set_value("ApplicationDescription", &"Markdown viewer and editor")?;
+        caps.set_value("ApplicationDescription", &description)?;
         caps.set_value("ApplicationIcon", &icon)?;
         let (assoc, _) = caps.create_subkey("FileAssociations")?;
         for ext in EXTENSIONS {
@@ -129,7 +130,7 @@ pub fn registered_exe() -> Option<String> {
     None
 }
 #[cfg(not(windows))]
-pub fn register() -> std::io::Result<()> {
+pub fn register(_file_type: &str, _description: &str) -> std::io::Result<()> {
     Ok(())
 }
 #[cfg(not(windows))]

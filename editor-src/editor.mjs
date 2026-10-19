@@ -73,10 +73,12 @@ function themeExtensions(theme) {
 
 /**
  * Creates an editor.
- * options: { text, theme, onChange(text), onScroll(line), onPasteImage(file) }
+ * options: { text, theme, phrases, onChange(text), onScroll(line), onPasteImage(file) }
+ * phrases translates CodeMirror's own UI text (the search panel), keyed by the English phrase.
  */
 function create(parent, options) {
     const themeSlot = new Compartment();
+    const phraseSlot = new Compartment();
     let suppress = false;
 
     const view = new EditorView({
@@ -102,6 +104,7 @@ function create(parent, options) {
                 EditorView.lineWrapping,
                 baseTheme,
                 themeSlot.of(themeExtensions(options.theme)),
+                phraseSlot.of(EditorState.phrases.of(options.phrases ?? {})),
                 EditorView.updateListener.of((u) => {
                     if (u.docChanged && !suppress) options.onChange?.(u.state.doc.toString());
                 }),
@@ -168,6 +171,9 @@ function create(parent, options) {
         },
         setTheme(theme) {
             view.dispatch({ effects: themeSlot.reconfigure(themeExtensions(theme)) });
+        },
+        setPhrases(phrases) {
+            view.dispatch({ effects: phraseSlot.reconfigure(EditorState.phrases.of(phrases)) });
         },
         focus: () => view.focus(),
         topLine,

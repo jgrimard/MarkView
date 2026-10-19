@@ -20,6 +20,8 @@ pub struct Settings {
     pub window: Option<Placement>,
     /// "ask" or "never": whether to offer the .md file association at startup.
     pub assoc_prompt: String,
+    /// "system" (the Windows display language) or a language id from i18n::SUPPORTED.
+    pub language: String,
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
@@ -43,6 +45,7 @@ impl Default for Settings {
             recent: Vec::new(),
             window: None,
             assoc_prompt: "ask".into(),
+            language: "system".into(),
         }
     }
 }

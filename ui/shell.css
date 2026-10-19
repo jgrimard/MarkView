@@ -85,6 +85,11 @@ body {
     flex-direction: column;
 }
 
+/* Segoe UI has no CJK glyphs: name each language's Windows UI font so Han characters get their regional forms. */
+html:lang(ja) body { font-family: "Segoe UI Variable Text", "Segoe UI", "Yu Gothic UI", "Meiryo UI", sans-serif; }
+html:lang(ko) body { font-family: "Segoe UI Variable Text", "Segoe UI", "Malgun Gothic", sans-serif; }
+html:lang(zh-Hans) body { font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif; }
+
 button {
     font: inherit;
     color: inherit;

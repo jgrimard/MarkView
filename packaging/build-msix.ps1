@@ -3,7 +3,7 @@
     Builds the Microsoft Store package (MSIX) for MarkView.
 
 .DESCRIPTION
-    Builds the release exe, lays out the package (manifest, exe, logo assets, resources.pri) under
+    Builds the release exe, lays out the package (manifest, exe, logo assets, localized strings, resources.pri) under
     dist\msix\<arch>, and packs it into dist\MarkView_<version>_<arch>.msix, ready to upload to Partner Center.
     The Store signs the package itself, so this script does not.
 
@@ -114,7 +114,27 @@ for ($i = 0; $i -lt $count; $i++) {
     }
 }
 
-# resources.pri maps the plain names in the manifest to the scale/targetsize variants above.
+# The manifest's ms-resource: strings (app description, file type name), in every UI language.
+$languages = @{
+    'en' = 'en-US'; 'de' = 'de-DE'; 'es' = 'es-ES'; 'fr' = 'fr-FR'; 'it' = 'it-IT'; 'ja' = 'ja-JP'; 'ko' = 'ko-KR'
+    'nl' = 'nl-NL'; 'pl' = 'pl-PL'; 'pt-BR' = 'pt-BR'; 'ru' = 'ru-RU'; 'tr' = 'tr-TR'; 'zh-Hans' = 'zh-CN'
+}
+foreach ($id in $languages.Keys) {
+    $strings = [IO.File]::ReadAllText((Join-Path $root "ui\locales\$id.json"), $utf8) | ConvertFrom-Json
+    $data = @{ AppDescription = $strings.'assoc.description'; FileTypeName = $strings.'assoc.fileType' }
+    $entries = foreach ($name in $data.Keys) {
+        "  <data name=`"$name`" xml:space=`"preserve`"><value>$([Security.SecurityElement]::Escape($data[$name]))</value></data>"
+    }
+    $resw = "<?xml version=`"1.0`" encoding=`"utf-8`"?>`r`n<root>`r`n" +
+        "  <resheader name=`"resmimetype`"><value>text/microsoft-resx</value></resheader>`r`n" +
+        "  <resheader name=`"version`"><value>2.0</value></resheader>`r`n" +
+        ($entries -join "`r`n") + "`r`n</root>`r`n"
+    $dir = New-Item -ItemType Directory -Force (Join-Path $layout "Strings\$($languages[$id])")
+    [IO.File]::WriteAllText((Join-Path $dir 'Resources.resw'), $resw, $utf8)
+}
+
+# resources.pri maps the plain names in the manifest to the scale/targetsize variants above, and the
+# ms-resource: strings to the Strings\<language> folders.
 Step 'Indexing resources'
 $priConfig = Join-Path (Split-Path $layout) "priconfig-$Arch.xml"
 & $makepri createconfig /cf $priConfig /dq en-US /pv 10.0.0 /o | Out-Null

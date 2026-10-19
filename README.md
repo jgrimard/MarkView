@@ -74,6 +74,10 @@ The whole app is a **single ~7 MB executable**. There's no installer and no runt
 - Recent files, drag-and-drop to open, single-instance file handling
 - Offers to become your default `.md` app on first run. This is per-user and needs no admin rights.
 
+**Languages**
+- English, Deutsch, Español, Français, Italiano, Nederlands, Polski, Português (Brasil), Türkçe, Русский, 日本語, 한국어 and 中文(简体)
+- Follows your Windows display language. Pick another one under **⋯ > Language**; it switches every open window instantly.
+
 ## Screenshots
 
 <div align="center">

@@ -3,7 +3,7 @@
 //! work; viewers that load HTML from a string have no base URL to resolve them against.
 
 use crate::settings::SettingsStore;
-use crate::{render, urlmap, PendingPrints};
+use crate::{i18n, render, urlmap, PendingPrints};
 use std::borrow::Cow;
 use std::path::Path;
 use tauri::http::{header, Request, Response, StatusCode};
@@ -82,6 +82,14 @@ pub fn handle(app: &AppHandle, request: &Request<Vec<u8>>) -> Response<Cow<'stat
     }
 }
 
+/// The strings a preview page shows itself (the `viewer.` keys, without the prefix).
+fn viewer_strings(all: &serde_json::Map<String, serde_json::Value>) -> serde_json::Value {
+    all.iter()
+        .filter_map(|(k, v)| k.strip_prefix("viewer.").map(|k| (k.to_string(), v.clone())))
+        .collect::<serde_json::Map<_, _>>()
+        .into()
+}
+
 fn page(app: &AppHandle, markdown: &str, title: &str, query: &str) -> Response<Cow<'static, [u8]>> {
     let settings = app.state::<SettingsStore>().get();
     let standalone = query.split('&').any(|kv| kv.starts_with("pdf="));
@@ -91,14 +99,17 @@ fn page(app: &AppHandle, markdown: &str, title: &str, query: &str) -> Response<C
         .get("viewer.html".to_string())
         .map(|a| String::from_utf8_lossy(&a.bytes).to_string())
         .unwrap_or_default();
+    let lang = i18n::effective(&settings.language);
     let config = serde_json::json!({
         "theme": theme,
         "toc": settings.toc_visible && !standalone,
         "zoom": if standalone { 1.0 } else { settings.zoom },
         "standalone": standalone,
+        "strings": viewer_strings(&i18n::strings(app, lang)),
     });
     let dark = theme == "dark";
     let html = template
+        .replace("{{LANG}}", lang)
         .replace("{{TITLE}}", &escape_html(title))
         .replace("{{THEME}}", &theme)
         .replace("{{LIGHT_MEDIA}}", if dark { "not all" } else { "all" })

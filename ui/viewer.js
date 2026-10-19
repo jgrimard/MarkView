@@ -14,6 +14,9 @@
     window.mvSendCommand = (name) => post({ type: 'command', name });
 
     let theme = config.theme;
+    let strings = config.strings ?? {};
+    // A preview string, with {name} placeholders filled in.
+    const t = (key, vars = {}) => (strings[key] ?? key).replace(/\{(\w+)\}/g, (m, k) => vars[k] ?? m);
     let generation = 0;
     let headings = [];
     let syncedLine = null;
@@ -52,6 +55,13 @@
     }
 
     const applyZoom = (zoom) => { article.style.zoom = String(zoom); };
+
+    function applyStrings(next) {
+        strings = next;
+        document.querySelector('#toc .toc-title').textContent = t('contents');
+        document.getElementById('toc').setAttribute('aria-label', t('contents'));
+        article.querySelectorAll('.code-copy-btn:not(.copied)').forEach((b) => { b.textContent = t('copy'); });
+    }
     const setToc = (visible) => document.body.classList.toggle('toc-hidden', !visible);
 
     // ---------- enhancements applied after every render ----------
@@ -120,14 +130,14 @@
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'code-copy-btn';
-            button.textContent = 'Copy';
+            button.textContent = t('copy');
             button.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const ok = await copyText(code.innerText);
-                button.textContent = ok ? 'Copied!' : 'Failed';
+                button.textContent = ok ? t('copied') : t('copyFailed');
                 button.classList.toggle('copied', ok);
                 setTimeout(() => {
-                    button.textContent = 'Copy';
+                    button.textContent = t('copy');
                     button.classList.remove('copied');
                 }, 1500);
             });
@@ -248,7 +258,7 @@
             } else {
                 const pre = document.createElement('pre');
                 pre.className = 'mermaid-error';
-                pre.textContent = 'Mermaid error: ' + result.error + '\n\n' + source;
+                pre.textContent = t('mermaidError', { error: result.error }) + '\n\n' + source;
                 node.replaceChildren(pre);
             }
         }
@@ -260,7 +270,7 @@
         const img = e.target;
         if (!(img instanceof HTMLImageElement)) return;
         img.classList.add('broken');
-        img.title = 'Image not found: ' + decodeURIComponent(img.src);
+        img.title = t('imageNotFound', { src: decodeURIComponent(img.src) });
         if (!img.alt) img.alt = img.getAttribute('src') ?? 'image';
     }, true);
 
@@ -386,6 +396,10 @@
             case 'unsync': syncedLine = null; break;
             case 'refreshImages': refreshImages(); break;
             case 'print': printDocument(); break;
+            case 'strings':
+                document.documentElement.lang = m.lang;
+                applyStrings(m.strings);
+                break;
             case 'scrollToFragment': {
                 const target = document.getElementById(m.id);
                 if (target) target.scrollIntoView({ block: 'start' });
@@ -401,6 +415,7 @@
         if (['PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) syncedLine = null;
     });
 
+    applyStrings(strings);
     setToc(config.toc);
     applyZoom(config.zoom);
     enhance().then(() => { document.body.dataset.ready = '1'; });

@@ -24,22 +24,35 @@
     <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
   </Dependencies>
 
+  <!-- One per ui/locales file; build-msix.ps1 generates Strings\<language>\Resources.resw from them. -->
   <Resources>
-    <Resource Language="en-us" />
+    <Resource Language="en-US" />
+    <Resource Language="de-DE" />
+    <Resource Language="es-ES" />
+    <Resource Language="fr-FR" />
+    <Resource Language="it-IT" />
+    <Resource Language="ja-JP" />
+    <Resource Language="ko-KR" />
+    <Resource Language="nl-NL" />
+    <Resource Language="pl-PL" />
+    <Resource Language="pt-BR" />
+    <Resource Language="ru-RU" />
+    <Resource Language="tr-TR" />
+    <Resource Language="zh-CN" />
   </Resources>
 
   <Applications>
     <Application Id="MarkView" Executable="markview.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         DisplayName="MarkView – Markdown Viewer"
-        Description="Markdown viewer and editor"
+        Description="ms-resource:AppDescription"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png" />
       <Extensions>
         <uap3:Extension Category="windows.fileTypeAssociation">
           <uap3:FileTypeAssociation Name="markdown" Parameters="&quot;%1&quot;">
-            <uap:DisplayName>Markdown Document</uap:DisplayName>
+            <uap:DisplayName>ms-resource:FileTypeName</uap:DisplayName>
             <uap:SupportedFileTypes>
               <uap:FileType>.md</uap:FileType>
               <uap:FileType>.markdown</uap:FileType>

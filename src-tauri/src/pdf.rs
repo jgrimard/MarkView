@@ -22,6 +22,7 @@ pub async fn export(app: AppHandle, doc_path: String, text: String, out: String)
 
     let out_path = out.clone();
     let tx_load = tx.clone();
+    let failed = crate::i18n::t(&app, "banner.pdfFailed");
     let mut builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(url.parse().map_err(|e| format!("{e}"))?))
         .title("MarkView PDF export")
         .inner_size(1000.0, 1200.0)
@@ -36,11 +37,12 @@ pub async fn export(app: AppHandle, doc_path: String, text: String, out: String)
             let webview = webview.clone();
             let out = out_path.clone();
             let tx = tx_load.clone();
+            let failed = failed.clone();
             std::thread::spawn(move || {
                 // Mermaid and KaTeX render asynchronously after the load event.
                 std::thread::sleep(Duration::from_millis(1500));
                 let tx_err = tx.clone();
-                if let Err(e) = webview.with_webview(move |platform| print_to_pdf(platform, &out, tx)) {
+                if let Err(e) = webview.with_webview(move |platform| print_to_pdf(platform, &out, failed, tx)) {
                     let _ = tx_err.send(Err(e.to_string()));
                 }
             });
@@ -51,8 +53,9 @@ pub async fn export(app: AppHandle, doc_path: String, text: String, out: String)
     let window = builder.build().map_err(|e| e.to_string())?;
     drop(tx);
 
+    let timeout = crate::i18n::t(&app, "error.pdfTimeout");
     let result = tauri::async_runtime::spawn_blocking(move || {
-        rx.recv_timeout(Duration::from_secs(60)).unwrap_or_else(|_| Err("Timed out exporting PDF".into()))
+        rx.recv_timeout(Duration::from_secs(60)).unwrap_or(Err(timeout))
     })
     .await
     .map_err(|e| e.to_string())?;
@@ -63,7 +66,7 @@ pub async fn export(app: AppHandle, doc_path: String, text: String, out: String)
 }
 
 #[cfg(windows)]
-fn print_to_pdf(platform: tauri::webview::PlatformWebview, out: &str, tx: mpsc::Sender<Result<(), String>>) {
+fn print_to_pdf(platform: tauri::webview::PlatformWebview, out: &str, failed: String, tx: mpsc::Sender<Result<(), String>>) {
     use webview2_com::Microsoft::Web::WebView2::Win32::*;
     use webview2_com::PrintToPdfCompletedHandler;
     use windows_core::{Interface, HSTRING};
@@ -85,7 +88,7 @@ fn print_to_pdf(platform: tauri::webview::PlatformWebview, out: &str, tx: mpsc::
                 let _ = done.send(match (status, ok) {
                     (Ok(()), true) => Ok(()),
                     (Err(e), _) => Err(e.message()),
-                    _ => Err("PDF export failed".to_string()),
+                    _ => Err(failed.clone()),
                 });
                 Ok(())
             }));
@@ -98,6 +101,6 @@ fn print_to_pdf(platform: tauri::webview::PlatformWebview, out: &str, tx: mpsc::
 }
 
 #[cfg(not(windows))]
-fn print_to_pdf(_: tauri::webview::PlatformWebview, _: &str, tx: mpsc::Sender<Result<(), String>>) {
+fn print_to_pdf(_: tauri::webview::PlatformWebview, _: &str, _: String, tx: mpsc::Sender<Result<(), String>>) {
     let _ = tx.send(Err("PDF export is only supported on Windows".into()));
 }

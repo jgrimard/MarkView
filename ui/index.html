@@ -10,32 +10,32 @@
     <!-- Tab strip: shown when "Open files in tabs" is on (or a window holds several documents) -->
     <div id="tabstrip" hidden>
         <div id="tabs" role="tablist"></div>
-        <button id="add-tab" class="tab-add" title="New document (Ctrl+N)"><span class="glyph">&#xE710;</span></button>
+        <button id="add-tab" class="tab-add" title="New document (Ctrl+N)" data-i18n-title="cmd.new" data-kbd="Ctrl+N"><span class="glyph">&#xE710;</span></button>
     </div>
 
     <div id="toolbar" role="toolbar">
         <div class="tools">
-            <button class="tb" data-cmd="back" id="btn-back" title="Back (Alt+Left)"><span class="glyph">&#xE72B;</span></button>
-            <button class="tb" data-cmd="forward" id="btn-forward" title="Forward (Alt+Right)"><span class="glyph">&#xE72A;</span></button>
+            <button class="tb" data-cmd="back" id="btn-back" title="Back (Alt+Left)" data-i18n-title="cmd.back" data-kbd="Alt+Left"><span class="glyph">&#xE72B;</span></button>
+            <button class="tb" data-cmd="forward" id="btn-forward" title="Forward (Alt+Right)" data-i18n-title="cmd.forward" data-kbd="Alt+Right"><span class="glyph">&#xE72A;</span></button>
             <span class="sep"></span>
-            <button class="tb" data-cmd="open" title="Open (Ctrl+O)"><span class="glyph">&#xE8E5;</span></button>
-            <button class="tb" data-menu="recent" title="Recent files"><span class="glyph">&#xE81C;</span></button>
-            <button class="tb" data-cmd="new" title="New document (Ctrl+N)"><span class="glyph">&#xE8A5;</span></button>
-            <button class="tb" data-cmd="save" id="btn-save" title="Save (Ctrl+S)"><span class="glyph">&#xE74E;</span></button>
+            <button class="tb" data-cmd="open" title="Open (Ctrl+O)" data-i18n-title="cmd.open" data-kbd="Ctrl+O"><span class="glyph">&#xE8E5;</span></button>
+            <button class="tb" data-menu="recent" title="Recent files" data-i18n-title="cmd.recent"><span class="glyph">&#xE81C;</span></button>
+            <button class="tb" data-cmd="new" title="New document (Ctrl+N)" data-i18n-title="cmd.new" data-kbd="Ctrl+N"><span class="glyph">&#xE8A5;</span></button>
+            <button class="tb" data-cmd="save" id="btn-save" title="Save (Ctrl+S)" data-i18n-title="cmd.save" data-kbd="Ctrl+S"><span class="glyph">&#xE74E;</span></button>
             <span class="sep"></span>
-            <button class="tb toggle" data-cmd="modeView" id="btn-view" title="Read (Ctrl+1)"><span class="glyph">&#xE890;</span></button>
-            <button class="tb toggle" data-cmd="modeSplit" id="btn-split" title="Edit with live preview (Ctrl+2)"><span class="glyph">&#xE89A;</span></button>
-            <button class="tb toggle" data-cmd="modeEdit" id="btn-edit" title="Edit only (Ctrl+3)"><span class="glyph">&#xE70F;</span></button>
+            <button class="tb toggle" data-cmd="modeView" id="btn-view" title="Read (Ctrl+1)" data-i18n-title="cmd.read" data-kbd="Ctrl+1"><span class="glyph">&#xE890;</span></button>
+            <button class="tb toggle" data-cmd="modeSplit" id="btn-split" title="Edit with live preview (Ctrl+2)" data-i18n-title="cmd.split" data-kbd="Ctrl+2"><span class="glyph">&#xE89A;</span></button>
+            <button class="tb toggle" data-cmd="modeEdit" id="btn-edit" title="Edit only (Ctrl+3)" data-i18n-title="cmd.edit" data-kbd="Ctrl+3"><span class="glyph">&#xE70F;</span></button>
             <span class="sep"></span>
-            <button class="tb toggle" data-cmd="toggleToc" id="btn-toc" title="Table of contents (Ctrl+T)"><span class="glyph">&#xE8E4;</span></button>
-            <button class="tb" data-cmd="zoomOut" title="Zoom out (Ctrl+-)"><span class="glyph">&#xE71F;</span></button>
-            <button class="tb zoom-label" data-cmd="zoomReset" id="btn-zoom" title="Reset zoom (Ctrl+0)">100%</button>
-            <button class="tb" data-cmd="zoomIn" title="Zoom in (Ctrl+=)"><span class="glyph">&#xE8A3;</span></button>
+            <button class="tb toggle" data-cmd="toggleToc" id="btn-toc" title="Table of contents (Ctrl+T)" data-i18n-title="cmd.toc" data-kbd="Ctrl+T"><span class="glyph">&#xE8E4;</span></button>
+            <button class="tb" data-cmd="zoomOut" title="Zoom out (Ctrl+-)" data-i18n-title="cmd.zoomOut" data-kbd="Ctrl+-"><span class="glyph">&#xE71F;</span></button>
+            <button class="tb zoom-label" data-cmd="zoomReset" id="btn-zoom" title="Reset zoom (Ctrl+0)" data-i18n-title="cmd.zoomReset" data-kbd="Ctrl+0">100%</button>
+            <button class="tb" data-cmd="zoomIn" title="Zoom in (Ctrl+=)" data-i18n-title="cmd.zoomIn" data-kbd="Ctrl+="><span class="glyph">&#xE8A3;</span></button>
             <span class="sep"></span>
-            <button class="tb" data-menu="theme" title="Theme"><span class="glyph">&#xE790;</span></button>
-            <button class="tb" data-cmd="print" title="Print (Ctrl+P)"><span class="glyph">&#xE749;</span></button>
-            <button class="tb" data-cmd="exportPdf" title="Export to PDF"><span class="glyph">&#xEA90;</span></button>
-            <button class="tb" data-menu="more" title="More"><span class="glyph">&#xE712;</span></button>
+            <button class="tb" data-menu="theme" title="Theme" data-i18n-title="cmd.theme"><span class="glyph">&#xE790;</span></button>
+            <button class="tb" data-cmd="print" title="Print (Ctrl+P)" data-i18n-title="cmd.print" data-kbd="Ctrl+P"><span class="glyph">&#xE749;</span></button>
+            <button class="tb" data-cmd="exportPdf" title="Export to PDF" data-i18n-title="cmd.exportPdf"><span class="glyph">&#xEA90;</span></button>
+            <button class="tb" data-menu="more" title="More" data-i18n-title="cmd.more"><span class="glyph">&#xE712;</span></button>
         </div>
         <div id="status"></div>
     </div>
@@ -46,12 +46,12 @@
         <div class="empty-inner">
             <img src="app-icon.png" alt="" width="72" height="72" />
             <h1>MarkView</h1>
-            <p class="secondary">Open a Markdown file or drop one anywhere on this window.</p>
+            <p class="secondary" data-i18n="empty.prompt">Open a Markdown file or drop one anywhere on this window.</p>
             <div class="empty-actions">
-                <button class="btn accent" data-cmd="open"><span class="glyph">&#xE8E5;</span>Open file</button>
-                <button class="btn" data-cmd="new"><span class="glyph">&#xE8A5;</span>New document</button>
+                <button class="btn accent" data-cmd="open"><span class="glyph">&#xE8E5;</span><span data-i18n="cmd.openFile">Open file</span></button>
+                <button class="btn" data-cmd="new"><span class="glyph">&#xE8A5;</span><span data-i18n="cmd.new">New document</span></button>
             </div>
-            <h2 id="recent-header" hidden>Recent</h2>
+            <h2 id="recent-header" hidden data-i18n="empty.recent">Recent</h2>
             <div id="recent-list"></div>
         </div>
     </section>

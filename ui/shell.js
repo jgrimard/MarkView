@@ -11,6 +11,18 @@
     const DOC_ORIGIN = 'http://mdfile.localhost';
     const $ = (sel) => document.querySelector(sel);
 
+    let L = null; // { lang, systemLang, languages, strings } from the i18n command
+    // A UI string, with {name} placeholders filled in.
+    const t = (key, vars = {}) => (L?.strings[key] ?? key).replace(/\{(\w+)\}/g, (m, k) => vars[k] ?? m);
+    // Key names in the UI language (German keyboards say Strg, not Ctrl).
+    const kbd = (keys) => keys.replace(/\b(Ctrl|Shift|Left|Right)\b/g, (k) => t('key.' + k.toLowerCase()));
+    const withKbd = (label, keys) => `${label} (${kbd(keys)})`;
+    const prefixed = (prefix) => Object.fromEntries(Object.entries(L.strings)
+        .filter(([k]) => k.startsWith(prefix))
+        .map(([k, v]) => [k.slice(prefix.length), v]));
+    const viewerStrings = () => prefixed('viewer.');
+    const editorPhrases = () => prefixed('cm.');
+
     let settings = null;
     let docs = [];
     let active = null;
@@ -71,14 +83,14 @@
             this.banner = el('div', { class: 'banner-host' });
             this.editorPane = el('div', { class: 'editor-pane' });
             this.splitter = el('div', { class: 'splitter' });
-            this.iframe = el('iframe', { class: 'preview', allow: 'clipboard-write', title: 'Preview' });
+            this.iframe = el('iframe', { class: 'preview', allow: 'clipboard-write', title: t('doc.preview') });
             this.panes = el('div', { class: 'panes' }, this.editorPane, this.splitter, this.iframe);
             this.root = el('section', { class: 'doc' }, this.banner, this.panes);
             this.initSplitter();
             $('#docs').append(this.root);
         }
 
-        get title() { return this.path ? fileName(this.path) : `Untitled ${this.untitledId}`; }
+        get title() { return this.path ? fileName(this.path) : t('doc.untitled', { n: this.untitledId }); }
         get dirty() { return this.text !== this.saved; }
 
         post(message) {
@@ -102,7 +114,7 @@
             try {
                 file = await invoke('read_file', { path });
             } catch (e) {
-                showBanner(this, 'error', 'Cannot open file', `${path}\n${e}`);
+                showBanner(this, 'error', t('banner.openFailed'), `${path}\n${e}`);
                 return false;
             }
             this.path = path;
@@ -138,6 +150,7 @@
             this.editor = MVEditor.create(this.editorPane, {
                 text: this.text,
                 theme: effectiveTheme(),
+                phrases: editorPhrases(),
                 onChange: (text) => {
                     const wasDirty = this.dirty;
                     // CodeMirror joins lines with \n; keep the file's own line endings.
@@ -253,15 +266,16 @@
         invoke('report_docs', { paths: docs.filter((d) => d.path).map((d) => d.path) });
     }
 
+    // action: 'closing' or 'leaving' (navigating away from the document).
     async function confirmDiscard(doc, action) {
         if (!doc.dirty) return true;
         activate(doc);
         const choice = await showDialog({
-            title: 'Unsaved changes',
-            content: `Save changes to "${doc.title}" before ${action}?`,
-            primary: 'Save',
-            secondary: "Don't save",
-            close: 'Cancel',
+            title: t('unsaved.title'),
+            content: t(action === 'closing' ? 'unsaved.beforeClosing' : 'unsaved.beforeLeaving', { name: doc.title }),
+            primary: t('cmd.save'),
+            secondary: t('unsaved.dontSave'),
+            close: t('common.cancel'),
         });
         if (choice === 'primary') return save(doc);
         return choice === 'secondary';
@@ -272,7 +286,7 @@
             if (fragment) doc.post({ type: 'scrollToFragment', id: fragment });
             return;
         }
-        if (!(await confirmDiscard(doc, 'leaving it'))) return;
+        if (!(await confirmDiscard(doc, 'leaving'))) return;
         // Already open in another tab of this window: switch to it.
         const other = docs.find((d) => d !== doc && sameFile(d.path, path));
         if (other) {
@@ -289,7 +303,7 @@
     async function goHistory(doc, direction) {
         const from = direction < 0 ? doc.back : doc.forward;
         const to = direction < 0 ? doc.forward : doc.back;
-        if (!from.length || !(await confirmDiscard(doc, 'leaving it'))) return;
+        if (!from.length || !(await confirmDiscard(doc, 'leaving'))) return;
         if (doc.path) to.push(doc.path);
         await doc.load(from.pop());
         reportDocs();
@@ -306,7 +320,7 @@
             updateChrome();
             return true;
         } catch (e) {
-            showBanner(doc, 'error', 'Save failed', String(e));
+            showBanner(doc, 'error', t('banner.saveFailed'), String(e));
             return false;
         }
     }
@@ -330,8 +344,7 @@
 
     async function pasteImage(doc, file) {
         if (!doc.path) {
-            showBanner(doc, 'info', 'Save the document first',
-                'Pasted images are stored in an images folder next to the document, so it needs to be saved once.');
+            showBanner(doc, 'info', t('banner.saveFirst'), t('banner.pasteNeedsSave'));
             return;
         }
         const ext = { 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/bmp': 'bmp', 'image/svg+xml': 'svg' }[file.type] ?? 'png';
@@ -344,7 +357,7 @@
             const rel = await invoke('save_pasted_image', { docPath: doc.path, data, ext });
             doc.editor.insert(`![image](${rel})`);
         } catch (e) {
-            showBanner(doc, 'error', 'Could not save pasted image', String(e));
+            showBanner(doc, 'error', t('banner.pasteFailed'), String(e));
         }
     }
 
@@ -357,7 +370,7 @@
             file = await invoke('read_file', { path: doc.path });
         } catch {
             if (!(await invoke('path_exists', { path: doc.path }))) {
-                showBanner(doc, 'warning', 'File deleted or moved', 'The file is no longer on disk. Save to recreate it.');
+                showBanner(doc, 'warning', t('banner.deleted'), t('banner.deletedText'));
                 doc.saved = '\u0000';
                 updateChrome();
             }
@@ -374,8 +387,7 @@
         if (!doc.dirty) {
             reload();
         } else {
-            showBanner(doc, 'warning', 'File changed on disk',
-                'Another program modified this file. Reload it and lose your edits?', 'Reload', reload);
+            showBanner(doc, 'warning', t('banner.changed'), t('banner.changedText'), t('cmd.reload'), reload);
         }
     }
 
@@ -415,7 +427,7 @@
     async function followLink(doc, url, newWindow) {
         const result = await invoke('open_link', { url });
         if (result.kind === 'missing') {
-            showBanner(doc, 'warning', 'Link target not found', result.path);
+            showBanner(doc, 'warning', t('banner.linkMissing'), result.path);
         } else if (result.kind === 'markdown') {
             if (newWindow) await invoke('open_paths', { paths: [result.path], fragment: result.fragment });
             else await navigateTo(doc, result.path, result.fragment);
@@ -500,7 +512,7 @@
                 doc.bom = file.bom;
                 doc.editor?.setText(doc.text);
             } catch (e) {
-                showBanner(doc, 'error', 'Cannot reload', String(e));
+                showBanner(doc, 'error', t('banner.reloadFailed'), String(e));
             }
         }
         await doc.navigate();
@@ -509,18 +521,18 @@
 
     async function exportPdf(doc) {
         if (!doc.path) {
-            showBanner(doc, 'info', 'Save the document first', 'PDF export needs the document saved so its images can be found.');
+            showBanner(doc, 'info', t('banner.saveFirst'), t('banner.pdfNeedsSave'));
             return;
         }
         const suggested = fileName(doc.path).replace(/\.[^.]+$/, '') + '.pdf';
         const out = await invoke('pick_save', { suggested, kind: 'pdf', directory: dirName(doc.path) });
         if (!out) return;
-        showBanner(doc, 'info', 'Exporting PDF...', out);
+        showBanner(doc, 'info', t('banner.pdfExporting'), out);
         try {
             await invoke('export_pdf', { docPath: doc.path, text: doc.text, out });
-            showBanner(doc, 'success', 'PDF exported', out, 'Open', () => invoke('open_path_external', { path: out }));
+            showBanner(doc, 'success', t('banner.pdfDone'), out, t('common.open'), () => invoke('open_path_external', { path: out }));
         } catch (e) {
-            showBanner(doc, 'error', 'PDF export failed', String(e));
+            showBanner(doc, 'error', t('banner.pdfFailed'), String(e));
         }
     }
 
@@ -543,7 +555,7 @@
         }
         $('#btn-toc').classList.toggle('checked', !!settings?.tocVisible);
         $('#btn-zoom').textContent = `${Math.round((settings?.zoom ?? 1) * 100)}%`;
-        $('#status').replaceChildren(el('bdi', {}, doc ? (doc.path ?? 'Unsaved document') : ''));
+        $('#status').replaceChildren(el('bdi', {}, doc ? (doc.path ?? t('doc.unsaved')) : ''));
 
         const title = doc ? `${doc.dirty ? '● ' : ''}${doc.title} - MarkView` : 'MarkView';
         if (document.title !== title) {
@@ -558,7 +570,7 @@
         $('#tabstrip').hidden = !show;
         if (!show) return;
         $('#tabs').replaceChildren(...docs.map((doc) => {
-            const close = el('button', { class: 'close', title: 'Close (Ctrl+W)' }, glyph(''));
+            const close = el('button', { class: 'close', title: withKbd(t('common.close'), 'Ctrl+W') }, glyph(''));
             close.addEventListener('click', (e) => {
                 e.stopPropagation();
                 closeDoc(doc);
@@ -595,7 +607,7 @@
         if (actionText && action) {
             actions.append(el('button', { class: 'btn', onclick: () => { hideBanner(doc); action(); } }, actionText));
         }
-        actions.append(el('button', { class: 'icon-btn', title: 'Close', onclick: () => hideBanner(doc) }, glyph('')));
+        actions.append(el('button', { class: 'icon-btn', title: t('common.close'), onclick: () => hideBanner(doc) }, glyph('')));
         doc.banner.replaceChildren(el('div', { class: `infobar ${severity}` },
             el('span', { class: 'icon glyph' }, icons[severity] ?? icons.info),
             el('div', { class: 'text' }, el('strong', {}, title), message ?? ''),
@@ -616,7 +628,7 @@
             if (item.separator) return el('div', { class: 'menu-sep' });
             const button = el('button', { class: 'menu-item', role: 'menuitem', title: item.tooltip },
                 el('span', { class: 'check glyph' }, item.checked ? (item.radio ? '' : '') : ''),
-                el('span', { class: 'label' }, item.label),
+                el('span', { class: 'label', lang: item.lang }, item.label),
                 item.shortcut ? el('span', { class: 'shortcut' }, item.shortcut) : null);
             button.disabled = !!item.disabled;
             button.addEventListener('click', () => {
@@ -647,7 +659,7 @@
     async function recentMenu(anchor) {
         const recent = settings.recent ?? [];
         if (!recent.length) {
-            showMenu(anchor, [{ label: 'No recent files', disabled: true }]);
+            showMenu(anchor, [{ label: t('recent.none'), disabled: true }]);
             return;
         }
         const exists = await Promise.all(recent.map((p) => invoke('path_exists', { path: p })));
@@ -659,72 +671,90 @@
                 action: () => invoke('open_paths', { paths: [p], fragment: null }),
             })),
             { separator: true },
-            { label: 'Clear recent files', action: () => invoke('update_settings', { patch: { recent: [] } }) },
+            { label: t('recent.clear'), action: () => invoke('update_settings', { patch: { recent: [] } }) },
         ]);
     }
 
     function themeMenu(anchor) {
         const pick = (theme) => () => invoke('update_settings', { patch: { theme } });
         showMenu(anchor, [
-            { label: 'Use system setting', radio: true, checked: settings.theme === 'system', action: pick('system') },
-            { label: 'Light', radio: true, checked: settings.theme === 'light', action: pick('light') },
-            { label: 'Dark', radio: true, checked: settings.theme === 'dark', action: pick('dark') },
+            { label: t('theme.system'), radio: true, checked: settings.theme === 'system', action: pick('system') },
+            { label: t('theme.light'), radio: true, checked: settings.theme === 'light', action: pick('light') },
+            { label: t('theme.dark'), radio: true, checked: settings.theme === 'dark', action: pick('dark') },
+        ]);
+    }
+
+    // Replaces the ⋯ menu's items in place (the flyout has no submenus).
+    function languageMenu(anchor) {
+        const pick = (language) => () => invoke('update_settings', { patch: { language } });
+        const system = L.languages.find((l) => l.id === L.systemLang);
+        showMenu(anchor, [
+            {
+                label: t('language.system', { language: system?.name ?? 'English' }),
+                radio: true,
+                checked: !L.languages.some((l) => l.id === settings.language),
+                action: pick('system'),
+            },
+            { separator: true },
+            ...L.languages.map((l) => ({
+                label: l.name,
+                lang: l.id,
+                radio: true,
+                checked: settings.language === l.id,
+                action: pick(l.id),
+            })),
         ]);
     }
 
     async function moreMenu(anchor) {
         const doc = active;
         const assoc = await invoke('association_status');
-        const assocLabel = assoc.registered
-            ? 'Re-register / set as default .md app...'
+        const assocLabel = t(assoc.registered
+            ? 'assoc.reregister'
             : assoc.registeredExe
-                ? 'Re-register .md files here (MarkView was moved)...'
-                : 'Use MarkView for .md files...';
+                ? 'assoc.reregisterMoved'
+                : 'assoc.use');
+        const language = L.languages.find((l) => l.id === L.lang)?.name;
         showMenu(anchor, [
-            { label: 'Save as...', shortcut: 'Ctrl+Shift+S', disabled: !doc, action: () => runCommand('saveAs') },
-            { label: 'Reload', shortcut: 'F5', disabled: !doc, action: () => runCommand('reload') },
+            { label: t('cmd.saveAsMenu'), shortcut: kbd('Ctrl+Shift+S'), disabled: !doc, action: () => runCommand('saveAs') },
+            { label: t('cmd.reload'), shortcut: 'F5', disabled: !doc, action: () => runCommand('reload') },
             { separator: true },
-            { label: 'Show in Explorer', disabled: !doc?.path, action: () => invoke('reveal', { path: doc.path }) },
-            { label: 'Copy file path', disabled: !doc?.path, action: () => navigator.clipboard.writeText(doc.path) },
+            { label: t('cmd.showInExplorer'), disabled: !doc?.path, action: () => invoke('reveal', { path: doc.path }) },
+            { label: t('cmd.copyPath'), disabled: !doc?.path, action: () => navigator.clipboard.writeText(doc.path) },
             { separator: true },
             {
-                label: 'Open files in tabs',
+                label: t('cmd.useTabs'),
                 checked: settings.useTabs,
                 action: () => invoke('update_settings', { patch: { useTabs: !settings.useTabs } }),
             },
+            { label: t('cmd.language'), shortcut: language, action: () => languageMenu(anchor) },
             { separator: true },
             // The Store build's association comes from its package; Windows Settings picks the default.
             assoc.packaged
-                ? { label: 'Set as default .md app...', action: () => invoke('open_default_apps') }
+                ? { label: t('assoc.setDefault'), action: () => invoke('open_default_apps') }
                 : { label: assocLabel, action: () => registerAssociation(assoc.registeredExe) },
-            assoc.registeredExe ? { label: 'Remove .md file association', action: removeAssociation } : null,
+            assoc.registeredExe ? { label: t('assoc.removeMenu'), action: removeAssociation } : null,
             { separator: true },
-            { label: 'Keyboard shortcuts', action: showShortcuts },
-            { label: 'About MarkView', action: showAbout },
+            { label: t('shortcuts.title'), action: showShortcuts },
+            { label: t('about.title'), action: showAbout },
         ].filter(Boolean));
     }
 
     // Where the exe lives, and why it has to stay there for "Open with" to keep working.
     function locationNote(info) {
         const parts = [
-            el('p', {}, 'MarkView is running from:'),
+            el('p', {}, t('assoc.runningFrom')),
             // Line breaks only after path separators, never inside a folder or file name.
             el('div', { class: 'path-box' }, ...info.exe.split('\\').flatMap((part, i, all) =>
                 i < all.length - 1 ? [part + '\\', el('wbr')] : [part])),
-            el('button', { class: 'link-btn', onclick: () => invoke('reveal', { path: info.exe }) }, 'Show in Explorer'),
-            el('p', {}, 'Keep MarkView.exe in this folder. Windows opens .md files with the program at this exact ' +
-                'location, so if it is moved or deleted, double-clicking .md files stops working. ' +
-                '(If you move it, MarkView will offer to set this up again the next time you open it.)'),
+            el('button', { class: 'link-btn', onclick: () => invoke('reveal', { path: info.exe }) }, t('cmd.showInExplorer')),
+            el('p', {}, t('assoc.keepExe')),
         ];
         if (info.previous && info.previous.toLowerCase() !== info.exe.toLowerCase()) {
-            parts.push(el('p', { class: 'note-warning' },
-                `.md files are currently set to open with a MarkView at a different location:\n${info.previous}\n` +
-                'Setting it up here replaces that.'));
+            parts.push(el('p', { class: 'note-warning' }, t('assoc.previous', { path: info.previous })));
         }
         if (info.temporary) {
-            parts.push(el('p', { class: 'note-warning' },
-                'This looks like a temporary folder (Downloads or Temp). Consider choosing "No" for now, ' +
-                `moving MarkView.exe to a permanent folder such as ${info.suggested}, and opening it from there.`));
+            parts.push(el('p', { class: 'note-warning' }, t('assoc.temporary', { folder: info.suggested })));
         }
         return parts;
     }
@@ -733,7 +763,7 @@
         try {
             await invoke('register_association');
         } catch (e) {
-            await showDialog({ title: 'Could not set up file association', content: String(e), close: 'OK' });
+            await showDialog({ title: t('assoc.setupFailed'), content: String(e), close: t('common.ok') });
             return false;
         }
         invoke('open_default_apps');
@@ -745,15 +775,14 @@
         const info = await invoke('association_prompt');
         if (!info) return;
         const choice = await showDialog({
-            title: 'Open .md files with MarkView?',
+            title: t('assoc.offerTitle'),
             content: el('div', {},
-                el('p', {}, 'MarkView can be your app for Markdown files, so double-clicking a .md file opens it here.'),
+                el('p', {}, t('assoc.offerText')),
                 ...locationNote(info),
-                el('p', { class: 'secondary-text' }, 'If you choose Yes, Windows Settings opens next so you can confirm ' +
-                    'MarkView as the default. Windows requires that step; apps cannot set it themselves.')),
-            primary: 'Yes',
-            secondary: 'No',
-            close: "No, don't ask again",
+                el('p', { class: 'secondary-text' }, t('assoc.offerNote'))),
+            primary: t('common.yes'),
+            secondary: t('common.no'),
+            close: t('assoc.never'),
             escape: 'secondary',
         });
         if (choice === 'primary') await setUpAssociation();
@@ -764,57 +793,55 @@
     async function registerAssociation(previous) {
         const info = await invoke('app_info');
         const choice = await showDialog({
-            title: 'Open .md files with MarkView',
+            title: t('assoc.registerTitle'),
             content: el('div', {},
                 ...locationNote({ exe: info.exe, previous, temporary: info.temporary, suggested: info.suggested }),
-                el('p', { class: 'secondary-text' }, 'Windows Settings opens next so you can confirm MarkView as the default.')),
-            primary: 'Set up',
-            close: 'Cancel',
+                el('p', { class: 'secondary-text' }, t('assoc.registerNote'))),
+            primary: t('assoc.registerButton'),
+            close: t('common.cancel'),
         });
         if (choice === 'primary') await setUpAssociation();
     }
 
     async function removeAssociation() {
         const choice = await showDialog({
-            title: 'Remove .md file association?',
-            content: 'MarkView will no longer appear under "Open with" for Markdown files. ' +
-                'If it is your default .md app, Windows will ask which app to use next time you open one.',
-            primary: 'Remove',
-            close: 'Cancel',
+            title: t('assoc.removeTitle'),
+            content: t('assoc.removeText'),
+            primary: t('assoc.removeButton'),
+            close: t('common.cancel'),
         });
         if (choice !== 'primary') return;
         try {
             await invoke('unregister_association');
         } catch (e) {
-            await showDialog({ title: 'Could not remove file association', content: String(e), close: 'OK' });
+            await showDialog({ title: t('assoc.removeFailed'), content: String(e), close: t('common.ok') });
         }
     }
 
     function showShortcuts() {
         const rows = [
-            ['Ctrl+O', 'Open file'], ['Ctrl+N', 'New document'], ['Ctrl+S', 'Save'], ['Ctrl+Shift+S', 'Save as'],
-            ['Ctrl+W', 'Close document'], ['Ctrl+Tab', 'Next tab (when tabs are on)'],
-            ['Ctrl+1 / 2 / 3', 'Read / Split / Edit'], ['Ctrl+E', 'Cycle view mode'], ['Ctrl+T', 'Table of contents'],
-            ['Ctrl+F', 'Find (in the editor)'], ['Ctrl+= / - / 0', 'Zoom in / out / reset'], ['F5', 'Reload'],
-            ['Alt+Left / Right', 'Back / Forward'], ['Ctrl+P', 'Print'],
+            ['Ctrl+O', 'cmd.openFile'], ['Ctrl+N', 'cmd.new'], ['Ctrl+S', 'cmd.save'], ['Ctrl+Shift+S', 'cmd.saveAs'],
+            ['Ctrl+W', 'shortcuts.closeDoc'], ['Ctrl+Tab', 'shortcuts.nextTab'],
+            ['Ctrl+1 / 2 / 3', 'shortcuts.modes'], ['Ctrl+E', 'shortcuts.cycleMode'], ['Ctrl+T', 'cmd.toc'],
+            ['Ctrl+F', 'shortcuts.find'], ['Ctrl+= / - / 0', 'shortcuts.zoom'], ['F5', 'cmd.reload'],
+            ['Alt+Left / Right', 'shortcuts.backForward'], ['Ctrl+P', 'cmd.print'],
         ];
-        const table = el('table', {}, ...rows.map(([k, v]) => el('tr', {}, el('td', {}, k), el('td', {}, v))));
-        const note = el('p', {}, 'Double-click the preview to jump to that line in the editor. ' +
-            'Paste or drop images into the editor to add them to the document.');
-        showDialog({ title: 'Keyboard shortcuts', content: el('div', {}, table, note), close: 'Close' });
+        const table = el('table', {}, ...rows.map(([k, v]) => el('tr', {}, el('td', {}, kbd(k)), el('td', {}, t(v)))));
+        const note = el('p', {}, t('shortcuts.note'));
+        showDialog({ title: t('shortcuts.title'), content: el('div', {}, table, note), close: t('common.close') });
     }
 
     async function showAbout() {
         const info = await invoke('app_info');
         showDialog({
-            title: 'About MarkView',
+            title: t('about.title'),
             content: el('div', {},
-                el('p', {}, `MarkView ${info.version}\nA Markdown viewer and editor.`),
+                el('p', {}, t('about.version', { version: info.version })),
                 el('button', { class: 'link-btn', onclick: () => invoke('open_link', { url: info.repository }) },
                     info.repository.replace(/^https:\/\//, '')),
-                el('p', {}, 'Built with Rust, Tauri, WebView2, comrak, CodeMirror, highlight.js, Mermaid, KaTeX and github-markdown-css.'),
-                el('p', {}, `Settings: ${info.dataDir}`)),
-            close: 'Close',
+                el('p', {}, t('about.builtWith')),
+                el('p', {}, t('about.settings', { path: info.dataDir }))),
+            close: t('common.close'),
         });
     }
 
@@ -851,6 +878,24 @@
             document.addEventListener('keydown', onKey, true);
             buttons[0]?.focus();
         });
+    }
+
+    // ================================================================ language
+
+    // Static text in index.html, open previews and editors, then everything updateChrome draws.
+    function applyStrings() {
+        document.documentElement.lang = L.lang;
+        document.querySelectorAll('[data-i18n]').forEach((e) => { e.textContent = t(e.dataset.i18n); });
+        document.querySelectorAll('[data-i18n-title]').forEach((e) => {
+            const label = t(e.dataset.i18nTitle);
+            e.title = e.dataset.kbd ? withKbd(label, e.dataset.kbd) : label;
+        });
+        for (const doc of docs) {
+            doc.iframe.title = t('doc.preview');
+            doc.post({ type: 'strings', lang: L.lang, strings: viewerStrings() });
+            doc.editor?.setPhrases(editorPhrases());
+        }
+        updateChrome();
     }
 
     // ================================================================ settings
@@ -912,6 +957,8 @@
 
     async function start() {
         settings = await invoke('get_settings');
+        L = await invoke('i18n');
+        applyStrings();
         const accent = await invoke('accent_colors').catch(() => null);
         if (accent) {
             document.documentElement.style.setProperty('--accent-light', accent.light);
@@ -921,8 +968,13 @@
 
         await listen('open-request', (e) => handleOpenRequest(e.payload));
         await listen('close-requested', () => closeWindow());
-        await listen('settings-changed', (e) => {
+        await listen('settings-changed', async (e) => {
+            const languageChanged = e.payload.language !== settings.language;
             settings = e.payload;
+            if (languageChanged) {
+                L = await invoke('i18n');
+                applyStrings();
+            }
             applySettings();
         });
         await listen('doc-changed', (e) => docs.filter((d) => sameFile(d.path, e.payload.path)).forEach((d) => d.diskChanged()));

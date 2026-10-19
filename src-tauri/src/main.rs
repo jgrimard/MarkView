@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod assoc;
+mod i18n;
 mod package;
 mod pdf;
 mod render;
@@ -100,10 +101,10 @@ fn path_exists(path: String) -> bool {
 
 /// Saves a pasted image next to the document (images/<doc>-<timestamp>.<ext>) and returns its relative path.
 #[tauri::command]
-fn save_pasted_image(doc_path: String, data: String, ext: String) -> Result<String, String> {
+fn save_pasted_image(app: AppHandle, doc_path: String, data: String, ext: String) -> Result<String, String> {
     let bytes = base64::engine::general_purpose::STANDARD.decode(data).map_err(|e| e.to_string())?;
     let doc = Path::new(&doc_path);
-    let dir = doc.parent().ok_or("Document has no folder")?.join("images");
+    let dir = doc.parent().ok_or_else(|| i18n::t(&app, "error.noFolder"))?.join("images");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let stem: String = doc
         .file_stem()
@@ -160,8 +161,8 @@ fn relative_path(from_dir: &Path, to: &Path) -> Option<String> {
 }
 
 #[tauri::command]
-fn suggest_name(text: String) -> String {
-    let base = render::first_heading(&text).unwrap_or_else(|| "Untitled".into());
+fn suggest_name(app: AppHandle, text: String) -> String {
+    let base = render::first_heading(&text).unwrap_or_else(|| i18n::t(&app, "file.untitled"));
     let cleaned: String = base
         .chars()
         .map(|c| if r#"<>:"/\|?*"#.contains(c) || c.is_control() { '_' } else { c })
@@ -274,11 +275,11 @@ fn close_window(app: AppHandle, window: WebviewWindow) {
 // ---------------------------------------------------------------- dialogs
 
 #[tauri::command]
-async fn pick_open(window: WebviewWindow) -> Vec<String> {
+async fn pick_open(app: AppHandle, window: WebviewWindow) -> Vec<String> {
     let dialog = rfd::AsyncFileDialog::new()
         .set_parent(&window)
         .add_filter("Markdown", &["md", "markdown", "mdown", "mkd", "mkdn", "mdwn", "txt"])
-        .add_filter("All files", &["*"]);
+        .add_filter(i18n::t(&app, "dialog.allFiles"), &["*"]);
     dialog
         .pick_files()
         .await
@@ -289,12 +290,12 @@ async fn pick_open(window: WebviewWindow) -> Vec<String> {
 }
 
 #[tauri::command]
-async fn pick_save(window: WebviewWindow, suggested: String, kind: String, directory: Option<String>) -> Option<String> {
+async fn pick_save(app: AppHandle, window: WebviewWindow, suggested: String, kind: String, directory: Option<String>) -> Option<String> {
     let mut dialog = rfd::AsyncFileDialog::new().set_parent(&window).set_file_name(suggested);
     dialog = if kind == "pdf" {
-        dialog.add_filter("PDF document", &["pdf"])
+        dialog.add_filter(i18n::t(&app, "dialog.pdfDocument"), &["pdf"])
     } else {
-        dialog.add_filter("Markdown", &["md"]).add_filter("All files", &["*"])
+        dialog.add_filter("Markdown", &["md"]).add_filter(i18n::t(&app, "dialog.allFiles"), &["*"])
     };
     if let Some(dir) = directory {
         dialog = dialog.set_directory(dir);
@@ -344,6 +345,18 @@ fn update_settings(app: AppHandle, patch: serde_json::Value) -> Settings {
     updated
 }
 
+/// The UI language, the Windows display language, the choices for the Language menu, and the strings.
+#[tauri::command]
+fn i18n(app: AppHandle) -> serde_json::Value {
+    let lang = i18n::current(&app);
+    serde_json::json!({
+        "lang": lang,
+        "systemLang": i18n::system_language(),
+        "languages": i18n::SUPPORTED.iter().map(|(id, name)| serde_json::json!({ "id": id, "name": name })).collect::<Vec<_>>(),
+        "strings": *i18n::strings(&app, lang),
+    })
+}
+
 #[tauri::command]
 fn system_theme() -> String {
     server::effective_theme("system")
@@ -383,8 +396,8 @@ fn association_status() -> serde_json::Value {
 }
 
 #[tauri::command]
-fn register_association() -> Result<String, String> {
-    assoc::register().map_err(|e| e.to_string())?;
+fn register_association(app: AppHandle) -> Result<String, String> {
+    assoc::register(&i18n::t(&app, "assoc.fileType"), &i18n::t(&app, "assoc.description")).map_err(|e| e.to_string())?;
     Ok(std::env::current_exe().map(|p| p.to_string_lossy().to_string()).unwrap_or_default())
 }
 
@@ -507,6 +520,7 @@ fn main() {
             open_path_external,
             get_settings,
             update_settings,
+            i18n,
             system_theme,
             accent_colors,
             association_status,
