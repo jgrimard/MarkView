@@ -119,9 +119,20 @@ $languages = @{
     'en' = 'en-US'; 'de' = 'de-DE'; 'es' = 'es-ES'; 'fr' = 'fr-FR'; 'it' = 'it-IT'; 'ja' = 'ja-JP'; 'ko' = 'ko-KR'
     'nl' = 'nl-NL'; 'pl' = 'pl-PL'; 'pt-BR' = 'pt-BR'; 'ru' = 'ru-RU'; 'tr' = 'tr-TR'; 'zh-Hans' = 'zh-CN'
 }
+# Reads one string from a locale file. (ConvertFrom-Json rejects keys differing only in case, such as
+# CodeMirror's "cm.Replace" and "cm.replace", so only the value itself goes through it.)
+function Get-LocaleString($json, $key) {
+    $m = [regex]::Match($json, '"' + [regex]::Escape($key) + '"\s*:\s*("(?:[^"\\]|\\.)*")')
+    if (-not $m.Success) { throw "$key is missing from a locale file" }
+    $m.Groups[1].Value | ConvertFrom-Json
+}
+
 foreach ($id in $languages.Keys) {
-    $strings = [IO.File]::ReadAllText((Join-Path $root "ui\locales\$id.json"), $utf8) | ConvertFrom-Json
-    $data = @{ AppDescription = $strings.'assoc.description'; FileTypeName = $strings.'assoc.fileType' }
+    $json = [IO.File]::ReadAllText((Join-Path $root "ui\locales\$id.json"), $utf8)
+    $data = @{
+        AppDescription = Get-LocaleString $json 'assoc.description'
+        FileTypeName = Get-LocaleString $json 'assoc.fileType'
+    }
     $entries = foreach ($name in $data.Keys) {
         "  <data name=`"$name`" xml:space=`"preserve`"><value>$([Security.SecurityElement]::Escape($data[$name]))</value></data>"
     }
