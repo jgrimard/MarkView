@@ -17,6 +17,7 @@
   "cmd.openFile": "ファイルを開く",
   "cmd.recent": "最近使ったファイル",
   "cmd.new": "新しいドキュメント",
+  "cmd.examples": "Markdown のサンプル",
   "cmd.save": "保存",
   "cmd.saveAs": "名前を付けて保存",
   "cmd.saveAsMenu": "名前を付けて保存...",
@@ -42,6 +43,7 @@
 
   "doc.preview": "プレビュー",
   "doc.untitled": "無題 {n}",
+  "doc.examples": "Markdown のサンプル",
   "doc.unsaved": "未保存のドキュメント",
 
   "recent.none": "最近使ったファイルはありません",

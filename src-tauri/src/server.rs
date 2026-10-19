@@ -47,6 +47,15 @@ pub fn handle(app: &AppHandle, request: &Request<Vec<u8>>) -> Response<Cow<'stat
         return page(app, "", "Untitled", query);
     }
 
+    // Like an untitled document (the shell pushes its text), but relative images load from the app.
+    if decoded_lower.starts_with(urlmap::EXAMPLES_PREFIX) {
+        let rest = &raw_path[urlmap::EXAMPLES_PREFIX.len()..];
+        if is_page_request {
+            return page(app, "", "Examples", query);
+        }
+        return serve_asset(app, &format!("examples/{rest}"));
+    }
+
     let Some(path) = urlmap::url_path_to_fs(raw_path) else {
         return not_found();
     };

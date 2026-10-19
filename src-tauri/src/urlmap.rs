@@ -12,6 +12,8 @@ use std::path::{Path, PathBuf};
 pub const ORIGIN: &str = "http://mdfile.localhost";
 pub const APP_PREFIX: &str = "/__app/";
 pub const UNTITLED_PREFIX: &str = "/__untitled/";
+/// The built-in Markdown examples; its images are served from the app's `examples/` folder.
+pub const EXAMPLES_PREFIX: &str = "/__examples/";
 
 /// Everything except RFC 3986 unreserved characters is escaped (like .NET's EscapeDataString).
 const SEGMENT: &AsciiSet = &NON_ALPHANUMERIC.remove(b'-').remove(b'.').remove(b'_').remove(b'~');
@@ -47,6 +49,10 @@ pub fn untitled_url(id: u32) -> String {
     format!("{ORIGIN}{UNTITLED_PREFIX}{id}/Untitled.md")
 }
 
+pub fn examples_url() -> String {
+    format!("{ORIGIN}{EXAMPLES_PREFIX}Examples.md")
+}
+
 fn is_drive(seg: &str) -> bool {
     let b = seg.as_bytes();
     b.len() == 2 && b[0].is_ascii_alphabetic() && b[1] == b':'
@@ -66,7 +72,7 @@ pub fn local_path_part(url: &str) -> Option<&str> {
 pub fn url_path_to_fs(path: &str) -> Option<PathBuf> {
     let decoded = percent_decode_str(path).decode_utf8_lossy().to_string();
     let lower = decoded.to_ascii_lowercase();
-    if lower.starts_with(APP_PREFIX) || lower.starts_with(UNTITLED_PREFIX) {
+    if lower.starts_with(APP_PREFIX) || lower.starts_with(UNTITLED_PREFIX) || lower.starts_with(EXAMPLES_PREFIX) {
         return None;
     }
     if let Some(rest) = decoded.strip_prefix("/unc/") {
@@ -177,5 +183,11 @@ mod tests {
         let (p, f) = url_to_path("http://mdfile.localhost/C:/d/other.md#images").unwrap();
         assert_eq!(p, Path::new(r"C:\d\other.md"));
         assert_eq!(f.as_deref(), Some("images"));
+    }
+
+    #[test]
+    fn app_urls_are_not_files() {
+        assert!(url_to_path(&examples_url()).is_none());
+        assert!(url_to_path(&untitled_url(3)).is_none());
     }
 }

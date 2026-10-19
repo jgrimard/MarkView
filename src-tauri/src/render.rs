@@ -186,4 +186,28 @@ mod tests {
         assert!(html.contains("data-math-style"), "{html}");
         assert!(html.contains("type=\"checkbox\""), "{html}");
     }
+
+    #[test]
+    fn examples_document_renders() {
+        let html = render(include_str!("../../ui/examples/examples.md"));
+        for expected in [
+            "markdown-alert-caution",
+            "data-math-style=\"display\"",
+            "language-mermaid",
+            "footnote",
+            "<table",
+            "<dl",
+            "id=\"font-size-and-alignment\"",
+            "start=\"7\"",
+            "examples-images/dusk.jpg",
+        ] {
+            assert!(html.contains(expected), "missing {expected}");
+        }
+        assert!(html.trim_start().starts_with("<h1"), "front matter is not hidden");
+        // Every in-page link points at a heading that exists.
+        for anchor in Regex::new(r##"href="#([a-z0-9-]+)""##).unwrap().captures_iter(&html) {
+            let id = format!("id=\"{}\"", &anchor[1]);
+            assert!(html.contains(&id) || anchor[1].starts_with("fn"), "no heading for #{}", &anchor[1]);
+        }
+    }
 }

@@ -17,6 +17,7 @@
   "cmd.openFile": "Dosya aç",
   "cmd.recent": "Son kullanılan dosyalar",
   "cmd.new": "Yeni belge",
+  "cmd.examples": "Markdown örnekleri",
   "cmd.save": "Kaydet",
   "cmd.saveAs": "Farklı kaydet",
   "cmd.saveAsMenu": "Farklı kaydet...",
@@ -42,6 +43,7 @@
 
   "doc.preview": "Önizleme",
   "doc.untitled": "Adsız {n}",
+  "doc.examples": "Markdown örnekleri",
   "doc.unsaved": "Kaydedilmemiş belge",
 
   "recent.none": "Son kullanılan dosya yok",

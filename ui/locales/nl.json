@@ -17,6 +17,7 @@
   "cmd.openFile": "Bestand openen",
   "cmd.recent": "Recente bestanden",
   "cmd.new": "Nieuw document",
+  "cmd.examples": "Markdown-voorbeelden",
   "cmd.save": "Opslaan",
   "cmd.saveAs": "Opslaan als",
   "cmd.saveAsMenu": "Opslaan als...",
@@ -42,6 +43,7 @@
 
   "doc.preview": "Voorbeeld",
   "doc.untitled": "Naamloos {n}",
+  "doc.examples": "Markdown-voorbeelden",
   "doc.unsaved": "Niet-opgeslagen document",
 
   "recent.none": "Geen recente bestanden",

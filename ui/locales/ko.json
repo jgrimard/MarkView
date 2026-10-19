@@ -17,6 +17,7 @@
   "cmd.openFile": "파일 열기",
   "cmd.recent": "최근 파일",
   "cmd.new": "새 문서",
+  "cmd.examples": "Markdown 예제",
   "cmd.save": "저장",
   "cmd.saveAs": "다른 이름으로 저장",
   "cmd.saveAsMenu": "다른 이름으로 저장...",
@@ -42,6 +43,7 @@
 
   "doc.preview": "미리 보기",
   "doc.untitled": "제목 없음 {n}",
+  "doc.examples": "Markdown 예제",
   "doc.unsaved": "저장되지 않은 문서",
 
   "recent.none": "최근 파일 없음",

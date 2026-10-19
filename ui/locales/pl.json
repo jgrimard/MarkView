@@ -17,6 +17,7 @@
   "cmd.openFile": "Otwórz plik",
   "cmd.recent": "Ostatnie pliki",
   "cmd.new": "Nowy dokument",
+  "cmd.examples": "Przykłady Markdown",
   "cmd.save": "Zapisz",
   "cmd.saveAs": "Zapisz jako",
   "cmd.saveAsMenu": "Zapisz jako...",
@@ -42,6 +43,7 @@
 
   "doc.preview": "Podgląd",
   "doc.untitled": "Bez tytułu {n}",
+  "doc.examples": "Przykłady Markdown",
   "doc.unsaved": "Niezapisany dokument",
 
   "recent.none": "Brak ostatnich plików",

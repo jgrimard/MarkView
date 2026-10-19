@@ -17,6 +17,7 @@
   "cmd.openFile": "打开文件",
   "cmd.recent": "最近使用的文件",
   "cmd.new": "新建文档",
+  "cmd.examples": "Markdown 示例",
   "cmd.save": "保存",
   "cmd.saveAs": "另存为",
   "cmd.saveAsMenu": "另存为...",
@@ -42,6 +43,7 @@
 
   "doc.preview": "预览",
   "doc.untitled": "无标题 {n}",
+  "doc.examples": "Markdown 示例",
   "doc.unsaved": "未保存的文档",
 
   "recent.none": "没有最近使用的文件",

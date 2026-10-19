@@ -67,6 +67,7 @@
         constructor() {
             this.path = null;
             this.untitledId = 0;
+            this.example = false; // the built-in examples: no file until saved as one
             this.text = '';
             this.saved = '';
             this.bom = false;
@@ -90,7 +91,10 @@
             $('#docs').append(this.root);
         }
 
-        get title() { return this.path ? fileName(this.path) : t('doc.untitled', { n: this.untitledId }); }
+        get title() {
+            if (this.path) return fileName(this.path);
+            return this.example ? t('doc.examples') : t('doc.untitled', { n: this.untitledId });
+        }
         get dirty() { return this.text !== this.saved; }
 
         post(message) {
@@ -105,7 +109,7 @@
 
         async navigate(fragment) {
             this.ready = false;
-            const url = await invoke('doc_url', { path: this.path, untitled: this.untitledId });
+            const url = await invoke('doc_url', { path: this.path, untitled: this.untitledId, examples: this.example });
             this.iframe.src = `${url}?v=${++navCounter}${fragment ? '#' + encodeURIComponent(fragment) : ''}`;
         }
 
@@ -236,6 +240,17 @@
         });
     }
 
+    async function examplesHere() {
+        const existing = docs.find((d) => d.example);
+        if (existing) return activate(existing);
+        await addDoc(async (doc) => {
+            doc.example = true;
+            doc.text = doc.saved = await invoke('example_document');
+            await doc.navigate();
+            doc.setMode('split');
+        });
+    }
+
     function activate(doc) {
         active = doc;
         for (const d of docs) d.root.classList.toggle('active', d === doc);
@@ -336,6 +351,10 @@
             return false;
         }
         invoke('add_recent', { path });
+        if (doc.example) {
+            doc.example = false;
+            await invoke('copy_example_images', { docPath: path }).catch(() => {});
+        }
         await doc.navigate(); // relative image paths now resolve against the new folder
         reportDocs();
         updateChrome();
@@ -459,6 +478,10 @@
                     break;
                 }
                 case 'new': await invoke('new_document'); break;
+                case 'examples':
+                    if (docs.some((d) => d.example)) await examplesHere(); // already here: switch to it
+                    else await invoke('open_examples');
+                    break;
                 case 'save': if (doc) await save(doc); break;
                 case 'saveAs': if (doc) await saveAs(doc); break;
                 case 'closeDoc':
@@ -735,6 +758,7 @@
                 : { label: assocLabel, action: () => registerAssociation(assoc.registeredExe) },
             assoc.registeredExe ? { label: t('assoc.removeMenu'), action: removeAssociation } : null,
             { separator: true },
+            { label: t('cmd.examples'), action: () => runCommand('examples') },
             { label: t('shortcuts.title'), action: showShortcuts },
             { label: t('about.title'), action: showAbout },
         ].filter(Boolean));
@@ -953,6 +977,7 @@
     async function handleOpenRequest(request) {
         if (request.kind === 'open') await openHere(request.path, request.fragment);
         else if (request.kind === 'new') await newHere();
+        else if (request.kind === 'examples') await examplesHere();
     }
 
     async function start() {

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="120" viewBox="0 0 480 120" font-family="Segoe UI, sans-serif" font-size="13" text-anchor="middle">
+  <rect width="480" height="120" rx="12" fill="#f6f8fa"/>
+  <g>
+    <rect x="20" y="20" width="64" height="56" rx="8" fill="#cf222e"/>
+    <rect x="96" y="20" width="64" height="56" rx="8" fill="#bc4c00"/>
+    <rect x="172" y="20" width="64" height="56" rx="8" fill="#bf8700"/>
+    <rect x="248" y="20" width="64" height="56" rx="8" fill="#1a7f37"/>
+    <rect x="324" y="20" width="64" height="56" rx="8" fill="#0969da"/>
+    <rect x="400" y="20" width="64" height="56" rx="8" fill="#8250df"/>
+  </g>
+  <g fill="#57606a">
+    <text x="52" y="98">#cf222e</text>
+    <text x="128" y="98">#bc4c00</text>
+    <text x="204" y="98">#bf8700</text>
+    <text x="280" y="98">#1a7f37</text>
+    <text x="356" y="98">#0969da</text>
+    <text x="432" y="98">#8250df</text>
+  </g>
+</svg>

@@ -15,6 +15,7 @@ use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, Theme, 
 pub enum OpenRequest {
     Open { path: String, fragment: Option<String> },
     New,
+    Examples,
 }
 
 #[derive(Default)]
@@ -259,15 +260,16 @@ pub fn open_path(app: &AppHandle, path: PathBuf, fragment: Option<String>, sourc
     }
 }
 
-pub fn new_document(app: &AppHandle, source: Option<&str>) {
+/// A document with no file (a new one, or the examples) goes where a newly opened file would.
+pub fn open_unsaved(app: &AppHandle, request: OpenRequest, source: Option<&str>) {
     match target_window(app, source) {
         Some(label) => {
-            deliver(app, &label, OpenRequest::New);
+            deliver(app, &label, request);
             focus(app, &label);
         }
         None => {
             let cascade = source.map(str::to_string).or_else(|| last_window(app));
-            let _ = create_window(app, cascade.as_deref(), vec![OpenRequest::New]);
+            let _ = create_window(app, cascade.as_deref(), vec![request]);
         }
     }
 }

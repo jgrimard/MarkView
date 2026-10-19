@@ -65,6 +65,7 @@ The whole app is a **single ~7 MB executable**. There's no installer and no runt
 - Drag files from Explorer onto the editor to insert relative links
 - Tick task-list checkboxes in the preview to update the source
 - Keeps each file's line endings (CRLF or LF) and UTF-8 byte-order mark as they were
+- **Markdown examples** (start screen or **⋯** menu): an editable tour of everything MarkView renders, from colors and font sizes to images, tables, math and diagrams
 
 **Working with files**
 - **Live reload**: the preview updates when the file, or any image it shows, changes on disk

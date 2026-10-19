@@ -70,11 +70,43 @@ fn render(text: String) -> String {
 }
 
 #[tauri::command]
-fn doc_url(path: Option<String>, untitled: u32) -> String {
+fn doc_url(path: Option<String>, untitled: u32, examples: bool) -> String {
     match path {
         Some(p) => urlmap::path_to_url(Path::new(&p)),
+        None if examples => urlmap::examples_url(),
         None => urlmap::untitled_url(untitled),
     }
+}
+
+/// Images the examples document links to, relative to the app's `examples/` folder.
+const EXAMPLE_IMAGES: &[&str] = &["examples-images/dusk.jpg", "examples-images/elevation.png", "examples-images/palette.svg"];
+
+/// The built-in Markdown examples. Each window gets a fresh copy; the original is never written.
+#[tauri::command]
+fn example_document(app: AppHandle) -> String {
+    app.asset_resolver()
+        .get("examples/examples.md".to_string())
+        .map(|a| String::from_utf8_lossy(&a.bytes).into_owned())
+        .unwrap_or_default()
+}
+
+/// After the examples are saved as a file, copies their images next to it so the copy renders too.
+/// Existing files are left alone.
+#[tauri::command]
+fn copy_example_images(app: AppHandle, doc_path: String) -> Result<(), String> {
+    let dir = Path::new(&doc_path).parent().ok_or("no folder")?;
+    for name in EXAMPLE_IMAGES {
+        let target = dir.join(name.replace('/', "\\"));
+        if target.exists() {
+            continue;
+        }
+        let Some(asset) = app.asset_resolver().get(format!("examples/{name}")) else { continue };
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        std::fs::write(&target, &asset.bytes).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -245,7 +277,12 @@ async fn open_paths(app: AppHandle, window: WebviewWindow, paths: Vec<String>, f
 
 #[tauri::command]
 async fn new_document(app: AppHandle, window: WebviewWindow) {
-    windows::new_document(&app, Some(window.label()));
+    windows::open_unsaved(&app, OpenRequest::New, Some(window.label()));
+}
+
+#[tauri::command]
+async fn open_examples(app: AppHandle, window: WebviewWindow) {
+    windows::open_unsaved(&app, OpenRequest::Examples, Some(window.label()));
 }
 
 #[tauri::command]
@@ -500,6 +537,8 @@ fn main() {
             write_file,
             render,
             doc_url,
+            example_document,
+            copy_example_images,
             add_recent,
             path_exists,
             watch_dependencies,
@@ -512,6 +551,7 @@ fn main() {
             report_docs,
             open_paths,
             new_document,
+            open_examples,
             set_title,
             close_window,
             pick_open,
