@@ -129,6 +129,13 @@ body.toc-empty #content {
     line-height: 1.7;
 }
 
+/* Large documents (see LARGE_DOC_ELEMENTS): skip style and layout for blocks that are off screen.
+   Only there, because the containment this implies clips overflow and stops margins collapsing. */
+.markdown-body.large > * {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 3em;
+}
+
 @media (max-width: 760px) {
     #content { margin-left: 0; padding: 12px; }
     #toc { transform: translateX(-100%); }

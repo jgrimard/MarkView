@@ -117,6 +117,9 @@ fn page(app: &AppHandle, markdown: &str, title: &str, query: &str) -> Response<C
         "strings": viewer_strings(&i18n::strings(app, lang)),
     });
     let dark = theme == "dark";
+    let content = render::render(markdown);
+    // Decided here rather than in viewer.js so the first layout already uses it.
+    let article_class = if render::is_large(&content) { " large" } else { "" };
     let html = template
         .replace("{{LANG}}", lang)
         .replace("{{TITLE}}", &escape_html(title))
@@ -124,7 +127,8 @@ fn page(app: &AppHandle, markdown: &str, title: &str, query: &str) -> Response<C
         .replace("{{LIGHT_MEDIA}}", if dark { "not all" } else { "all" })
         .replace("{{DARK_MEDIA}}", if dark { "all" } else { "not all" })
         .replace("{{CONFIG}}", &config.to_string().replace('<', "\\u003c"))
-        .replace("{{CONTENT}}", &render::render(markdown)); // last: document text is never a placeholder
+        .replace("{{ARTICLE_CLASS}}", article_class)
+        .replace("{{CONTENT}}", &content); // last: document text is never a placeholder
     Response::builder()
         .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
         .header(header::CACHE_CONTROL, "no-store")

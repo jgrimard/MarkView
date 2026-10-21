@@ -71,6 +71,16 @@ fn bracket_paths_with_spaces(markdown: &str) -> String {
     out
 }
 
+/// Above this many source-mapped elements the preview switches to its large-document mode: off-screen
+/// blocks skip layout, and math and code highlighting render as they scroll into view. viewer.js
+/// applies the same limit after live edits.
+pub const LARGE_DOC_ELEMENTS: usize = 5000;
+
+/// Whether rendered HTML is big enough for the preview's large-document mode.
+pub fn is_large(html: &str) -> bool {
+    html.matches("data-sourcepos=\"").nth(LARGE_DOC_ELEMENTS).is_some()
+}
+
 /// Renders Markdown to the HTML that goes inside the viewer's article element.
 pub fn render(markdown: &str) -> String {
     let source = bracket_paths_with_spaces(markdown);
@@ -185,6 +195,13 @@ mod tests {
         assert!(html.contains("🚀"), "{html}");
         assert!(html.contains("data-math-style"), "{html}");
         assert!(html.contains("type=\"checkbox\""), "{html}");
+    }
+
+    #[test]
+    fn large_documents_are_detected() {
+        assert!(!is_large(&render(include_str!("../../ui/examples/examples.md"))));
+        assert!(!is_large(&render(&"Paragraph.\n\n".repeat(LARGE_DOC_ELEMENTS))));
+        assert!(is_large(&render(&"Paragraph.\n\n".repeat(LARGE_DOC_ELEMENTS + 1))));
     }
 
     #[test]

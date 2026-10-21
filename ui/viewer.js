@@ -26,6 +26,40 @@
     // 0-based source line of an element rendered with data-sourcepos="line:col-line:col".
     const lineOf = (el) => parseInt(el.dataset.sourcepos, 10) - 1;
 
+    // ---------- large documents (LARGE_DOC_ELEMENTS in render.rs; the server sets the class on load) ----------
+    const LARGE_DOC_ELEMENTS = 5000;
+    const updateLarge = () => article.classList.toggle('large',
+        article.querySelectorAll('[data-sourcepos]').length > LARGE_DOC_ELEMENTS);
+
+    // In a large document, math and code highlighting are done as their block nears the screen.
+    // Printing and PDF export (standalone) still get everything.
+    const nearWork = new Map(); // top-level block -> pending functions
+    const nearObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            nearObserver.unobserve(entry.target);
+            const work = nearWork.get(entry.target) ?? [];
+            nearWork.delete(entry.target);
+            work.forEach((fn) => fn());
+        }
+    }, { rootMargin: '2000px 0px' });
+    function whenNear(el, fn) {
+        if (!embedded || !article.classList.contains('large')) return fn();
+        let block = el;
+        while (block.parentElement && block.parentElement !== article) block = block.parentElement;
+        if (!nearWork.has(block)) {
+            nearWork.set(block, []);
+            nearObserver.observe(block);
+        }
+        nearWork.get(block).push(fn);
+    }
+    function flushNear() {
+        nearObserver.disconnect();
+        const work = [...nearWork.values()].flat();
+        nearWork.clear();
+        work.forEach((fn) => fn());
+    }
+
     // ---------- lazy script loading (Mermaid and KaTeX are only fetched when a page needs them) ----------
     const loaded = new Map();
     function loadScript(path) {
@@ -67,6 +101,8 @@
     // ---------- enhancements applied after every render ----------
     function enhance() {
         const gen = ++generation;
+        nearObserver.disconnect(); // the previous content is gone
+        nearWork.clear();
         convertMermaidBlocks();
         highlightCode();
         addCopyButtons();
@@ -102,7 +138,7 @@
                 label.textContent = lang;
                 pre.appendChild(label);
             }
-            if (hljs.getLanguage(lang)) hljs.highlightElement(code);
+            if (hljs.getLanguage(lang)) whenNear(code, () => hljs.highlightElement(code));
         });
     }
 
@@ -203,19 +239,22 @@
             console.error(e);
             return;
         }
-        for (const el of nodes) {
-            const display = el.dataset.mathStyle === 'display';
-            let target = el;
-            if (el.tagName === 'CODE' && el.parentElement?.tagName === 'PRE') {
-                target = document.createElement('div');
-                target.className = 'math-display';
-                if (el.parentElement.dataset.sourcepos) target.dataset.sourcepos = el.parentElement.dataset.sourcepos;
-                el.parentElement.replaceWith(target);
-            }
-            katex.render(el.textContent, target, { displayMode: display, throwOnError: false });
-            target.dataset.rendered = '1';
-            el.dataset.rendered = '1';
+        for (const el of nodes) whenNear(el, () => renderMathNode(el));
+    }
+
+    function renderMathNode(el) {
+        if (el.dataset.rendered || !el.isConnected) return;
+        const display = el.dataset.mathStyle === 'display';
+        let target = el;
+        if (el.tagName === 'CODE' && el.parentElement?.tagName === 'PRE') {
+            target = document.createElement('div');
+            target.className = 'math-display';
+            if (el.parentElement.dataset.sourcepos) target.dataset.sourcepos = el.parentElement.dataset.sourcepos;
+            el.parentElement.replaceWith(target);
         }
+        katex.render(el.textContent, target, { displayMode: display, throwOnError: false });
+        target.dataset.rendered = '1';
+        el.dataset.rendered = '1';
     }
 
     // Rendered diagrams are cached by theme + source so live editing does not re-render unchanged ones.
@@ -366,6 +405,7 @@
     let themeBeforePrint = null;
     async function printDocument() {
         lightbox.hidden = true;
+        flushNear();
         if (theme === 'dark') {
             themeBeforePrint = theme;
             await applyTheme('light');
@@ -387,6 +427,7 @@
         switch (m.type) {
             case 'update':
                 article.innerHTML = m.html;
+                updateLarge(); // before any layout of the new content
                 enhance();
                 break;
             case 'theme': applyTheme(m.theme); break;
