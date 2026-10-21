@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod assoc;
+#[cfg(test)]
+mod fuzz;
 mod i18n;
 mod package;
 mod pdf;
@@ -507,7 +509,31 @@ fn files_from_args(args: &[String], cwd: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
+/// A panic ends the app at once (panic = "abort"), and Partner Center then reports an
+/// "Uncategorized" failure with no stack. Record what panicked and where in crash.log first.
+fn log_panics() {
+    let default = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        use std::io::Write;
+        let path = settings::data_dir().join("crash.log");
+        let append = std::fs::metadata(&path).is_ok_and(|m| m.len() < 256 * 1024); // else start over
+        let entry = format!(
+            "{} MarkView {} (thread {})\n{info}\n{}\n\n",
+            chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+            env!("CARGO_PKG_VERSION"),
+            std::thread::current().name().unwrap_or("unnamed"),
+            std::backtrace::Backtrace::force_capture(),
+        );
+        let file = std::fs::OpenOptions::new().create(true).write(true).append(append).truncate(!append).open(&path);
+        if let Ok(mut file) = file {
+            let _ = file.write_all(entry.as_bytes());
+        }
+        default(info);
+    }));
+}
+
 fn main() {
+    log_panics();
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
             let files = files_from_args(&args, Path::new(&cwd));
