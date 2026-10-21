@@ -43,15 +43,14 @@ Welcome! This page is a tour of everything MarkView can display, from simple **b
 
 Start a line with one to six `#` characters. More `#` means a smaller heading. Headings also appear in the table of contents (<kbd>Ctrl</kbd>+<kbd>T</kbd>).
 
+<!-- The samples on this page use HTML headings so they stay out of the table of contents. -->
 <div style="border:1px solid rgba(128,128,128,0.35); border-radius:6px; padding:4px 16px">
-
-# Heading 1
-## Heading 2
-### Heading 3
-#### Heading 4
-##### Heading 5
-###### Heading 6
-
+<h1>Heading 1</h1>
+<h2>Heading 2</h2>
+<h3>Heading 3</h3>
+<h4>Heading 4</h4>
+<h5>Heading 5</h5>
+<h6>Heading 6</h6>
 </div>
 
 ```markdown
@@ -66,13 +65,8 @@ Start a line with one to six `#` characters. More `#` means a smaller heading. H
 The two largest levels can also be written by underlining the text with `=` or `-`:
 
 <div style="border:1px solid rgba(128,128,128,0.35); border-radius:6px; padding:4px 16px">
-
-Underlined heading 1
-====================
-
-Underlined heading 2
---------------------
-
+<h1>Underlined heading 1</h1>
+<h2>Underlined heading 2</h2>
 </div>
 
 ```markdown
@@ -591,7 +585,7 @@ $$
 \qquad
 \alpha, \beta, \gamma, \Delta, \Omega
 \qquad
-\color{#0969da}{E} = \color{#cf222e}{m}\color{#1a7f37}{c^2}
+\textcolor{#0969da}{E} = \textcolor{#cf222e}{m}\textcolor{#1a7f37}{c^2}
 $$
 
 ````markdown
@@ -662,7 +656,7 @@ classDiagram
     class Window {
         +open(path)
     }
-    Window "1" --> "*" Document : shows
+    Window --> Document : shows
 ```
 
 **State diagram**
@@ -682,7 +676,11 @@ stateDiagram-v2
 ```mermaid
 gantt
     title Writing a report
+    %% dateFormat = how you type dates below; axisFormat = how the axis shows them
     dateFormat YYYY-MM-DD
+    axisFormat %m/%d/%Y
+    %% Label every other day so the dates don't overlap
+    tickInterval 2day
     section Research
         Gather notes      :a1, 2026-01-05, 4d
         Interviews        :a2, after a1, 3d

@@ -529,6 +529,17 @@
     }
     window.mvSendCommand = runCommand;
 
+    // Ctrl+F outside the editor searches the preview; inside it, the editor's own search panel opens.
+    // (Pressed inside the preview, the preview handles it itself.)
+    window.addEventListener('keydown', (e) => {
+        if (!e.ctrlKey || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'f') return;
+        const doc = active;
+        if (!doc || doc.mode === 'edit' || doc.editorPane.contains(document.activeElement)) return;
+        e.preventDefault();
+        doc.iframe.focus();
+        doc.post({ type: 'find' });
+    });
+
     function setMode(doc, mode) {
         doc.setMode(mode);
         updateChrome();

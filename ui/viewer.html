@@ -20,6 +20,13 @@
         <article id="article" class="markdown-body{{ARTICLE_CLASS}}">{{CONTENT}}</article>
     </main>
     <div id="lightbox" hidden><img alt="" /></div>
+    <div id="find-bar" role="search" hidden>
+        <input id="find-input" type="text" spellcheck="false" autocomplete="off" />
+        <span id="find-count" aria-live="polite"></span>
+        <button type="button" id="find-prev" class="find-btn">&#xE70E;</button>
+        <button type="button" id="find-next" class="find-btn">&#xE70D;</button>
+        <button type="button" id="find-close" class="find-btn">&#xE711;</button>
+    </div>
 
     <script type="application/json" id="mv-config">{{CONFIG}}</script>
     <script src="http://mdfile.localhost/__app/vendor/highlightjs/highlight.min.js"></script>

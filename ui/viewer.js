@@ -41,6 +41,7 @@
             const work = nearWork.get(entry.target) ?? [];
             nearWork.delete(entry.target);
             work.forEach((fn) => fn());
+            if (work.length) refreshFindSoon(); // highlighting replaced text that matches pointed into
         }
     }, { rootMargin: '2000px 0px' });
     function whenNear(el, fn) {
@@ -95,6 +96,14 @@
         document.querySelector('#toc .toc-title').textContent = t('contents');
         document.getElementById('toc').setAttribute('aria-label', t('contents'));
         article.querySelectorAll('.code-copy-btn:not(.copied)').forEach((b) => { b.textContent = t('copy'); });
+        findInput.placeholder = t('find');
+        findInput.setAttribute('aria-label', t('find'));
+        for (const [id, key] of [['find-prev', 'findPrev'], ['find-next', 'findNext'], ['find-close', 'findClose']]) {
+            const button = document.getElementById(id);
+            button.title = t(key);
+            button.setAttribute('aria-label', t(key));
+        }
+        showCount();
     }
     const setToc = (visible) => document.body.classList.toggle('toc-hidden', !visible);
 
@@ -137,6 +146,7 @@
                 label.className = 'code-lang';
                 label.textContent = lang;
                 pre.appendChild(label);
+                pre.classList.add('has-lang');
             }
             if (hljs.getLanguage(lang)) whenNear(code, () => hljs.highlightElement(code));
         });
@@ -271,7 +281,14 @@
             return;
         }
         if (mermaidTheme !== theme) {
-            mermaid.initialize({ startOnLoad: false, theme: theme === 'dark' ? 'dark' : 'default', securityLevel: 'strict' });
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: theme === 'dark' ? 'dark' : 'default',
+                securityLevel: 'strict',
+                // Mermaid's Gantt text (11px, 10px axis) is small next to the other diagrams.
+                gantt: { fontSize: 14, sectionFontSize: 14, barHeight: 26, barGap: 6, leftPadding: 90 },
+                themeCSS: '.grid .tick text { font-size: 11px; }',
+            });
             mermaidTheme = theme;
         }
         for (const node of nodes) {
@@ -281,13 +298,24 @@
             const key = theme + '\n' + source;
             if (!mermaidCache.has(key)) {
                 const id = 'mmd-' + (++mermaidSeq);
+                // Draw at the width the diagram will be shown at: Gantt charts fill their container, and Mermaid's
+                // default container (the whole page) would make them shrink, text and all, to fit the article.
+                const style = getComputedStyle(node);
+                const width = node.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+                const host = width > 0 ? document.createElement('div') : null;
+                if (host) {
+                    host.style.cssText = `position: absolute; top: 0; left: -10000px; width: ${width}px;`;
+                    document.body.appendChild(host);
+                }
                 try {
-                    const { svg } = await mermaid.render(id, source);
+                    const { svg } = await mermaid.render(id, source, host ?? undefined);
                     mermaidCache.set(key, { svg });
                 } catch (e) {
                     mermaidCache.set(key, { error: String(e?.message ?? e) });
                     document.getElementById('d' + id)?.remove();
                     document.getElementById(id)?.remove();
+                } finally {
+                    host?.remove();
                 }
             }
             const result = mermaidCache.get(key);
@@ -420,6 +448,179 @@
         }
     });
 
+    // ---------- find in page (Ctrl+F; the editor has its own search panel) ----------
+    const findBar = document.getElementById('find-bar');
+    const findInput = document.getElementById('find-input');
+    const findCount = document.getElementById('find-count');
+    // Math is left out: it reads as LaTeX until rendered (lazily, in a large document) and as symbols after.
+    const FIND_SKIP = 'style, script, [data-math-style], .math-display, .code-copy-btn, .code-lang';
+    const MAX_MATCHES = 10000;
+    const FIND_TOP = 60; // the find bar covers the top of the window
+    let matches = [];
+    let current = -1;
+
+    // Every match of the query as a Range: case-insensitive, with any run of spaces matching any whitespace.
+    // The text is joined across elements, so a match can span formatting such as **bold**.
+    function findRanges(query) {
+        const words = query.trim();
+        if (!words) return [];
+        const escape = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pattern = new RegExp(words.split(/\s+/).map(escape).join('\\s+'), 'giu');
+        const walker = document.createTreeWalker(article, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+            acceptNode: (n) => {
+                if (n.nodeType === Node.TEXT_NODE) return NodeFilter.FILTER_ACCEPT;
+                // Diagram <text> can't show a highlight, so it is left out rather than counted invisibly.
+                if (n.matches(FIND_SKIP) || n instanceof SVGTextContentElement) return NodeFilter.FILTER_REJECT;
+                return NodeFilter.FILTER_SKIP;
+            },
+        });
+        const nodes = [];
+        const starts = [];
+        let text = '';
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+            nodes.push(n);
+            starts.push(text.length);
+            text += n.data;
+        }
+        const ranges = [];
+        let a = 0;
+        for (const m of text.matchAll(pattern)) {
+            const from = m.index;
+            const to = from + m[0].length;
+            while (a + 1 < nodes.length && starts[a + 1] <= from) a++;
+            let b = a;
+            while (b + 1 < nodes.length && starts[b + 1] < to) b++;
+            const range = new Range();
+            range.setStart(nodes[a], from - starts[a]);
+            range.setEnd(nodes[b], to - starts[b]);
+            ranges.push(range);
+            if (ranges.length >= MAX_MATCHES) break;
+        }
+        return ranges;
+    }
+
+    function paintMatches() {
+        if (!CSS.highlights) return;
+        CSS.highlights.set('mv-find', new Highlight(...matches));
+        const now = new Highlight(...(matches[current] ? [matches[current]] : []));
+        now.priority = 1;
+        CSS.highlights.set('mv-find-current', now);
+    }
+
+    function showCount() {
+        const query = findInput.value.trim();
+        const none = query !== '' && !matches.length;
+        findCount.textContent = none ? t('findNone')
+            : matches.length ? t('findCount', { current: current + 1, total: matches.length }) : '';
+        findBar.classList.toggle('no-match', none);
+    }
+
+    function revealMatch() {
+        const range = matches[current];
+        if (!range) return;
+        const el = range.startContainer.parentElement;
+        for (let d = el.closest('details:not([open])'); d; d = d.closest('details:not([open])')) d.open = true;
+        syncedLine = null;
+        const visible = (r) => r.height > 0 && r.top >= FIND_TOP && r.bottom <= window.innerHeight - 20;
+        if (visible(range.getBoundingClientRect())) return;
+        el.scrollIntoView({ block: 'center', inline: 'nearest' });
+        const rect = range.getBoundingClientRect();
+        if (!visible(rect)) window.scrollBy(0, rect.top - window.innerHeight / 2);
+    }
+
+    // keepPlace: re-run after the content changed, without moving the view.
+    function runFind(keepPlace = false) {
+        matches = findRanges(findInput.value);
+        if (keepPlace) {
+            current = Math.min(current, matches.length - 1);
+            if (current < 0 && matches.length) current = 0;
+        } else {
+            // Start from the first match at or below the top of the window, as browsers do.
+            let lo = 0;
+            let hi = matches.length;
+            while (lo < hi) {
+                const mid = (lo + hi) >> 1;
+                if (matches[mid].getBoundingClientRect().bottom < FIND_TOP) lo = mid + 1;
+                else hi = mid;
+            }
+            current = matches.length ? lo % matches.length : -1;
+        }
+        paintMatches();
+        showCount();
+        if (!keepPlace) revealMatch();
+    }
+
+    function stepFind(delta) {
+        if (!matches.length) return;
+        current = (current + delta + matches.length) % matches.length;
+        paintMatches();
+        showCount();
+        revealMatch();
+    }
+
+    function openFind() {
+        const selected = window.getSelection().toString().trim();
+        if (selected && selected.length <= 200 && !selected.includes('\n')) findInput.value = selected;
+        findBar.hidden = false;
+        findInput.focus();
+        findInput.select();
+        if (findInput.value.trim()) runFind();
+    }
+
+    function closeFind() {
+        if (findBar.hidden) return;
+        findBar.hidden = true;
+        // Leave the current match selected, so Ctrl+C copies it.
+        const range = matches[current];
+        if (range) {
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+        matches = [];
+        current = -1;
+        paintMatches();
+    }
+
+    function refreshFind() {
+        if (!findBar.hidden && findInput.value.trim()) runFind(true);
+    }
+
+    // Large documents highlight code as it scrolls near; re-find once a burst of that settles.
+    let refreshTimer = 0;
+    function refreshFindSoon() {
+        if (findBar.hidden) return;
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(refreshFind, 150);
+    }
+
+    findInput.addEventListener('input', () => runFind());
+    findInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            stepFind(e.shiftKey ? -1 : 1);
+        } else if (e.key === 'Escape') {
+            e.stopPropagation();
+            closeFind();
+        }
+    });
+    document.getElementById('find-prev').addEventListener('click', () => stepFind(-1));
+    document.getElementById('find-next').addEventListener('click', () => stepFind(1));
+    document.getElementById('find-close').addEventListener('click', closeFind);
+    document.addEventListener('keydown', (e) => {
+        const plain = !e.altKey && !e.metaKey;
+        if (plain && e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'f') {
+            e.preventDefault();
+            openFind();
+        } else if (plain && !e.ctrlKey && e.key === 'F3') {
+            e.preventDefault();
+            if (findBar.hidden || !matches.length) openFind();
+            else stepFind(e.shiftKey ? -1 : 1);
+        } else if (e.key === 'Escape') {
+            closeFind();
+        }
+    });
+
     // ---------- shell messages ----------
     window.addEventListener('message', (e) => {
         if (e.origin !== SHELL_ORIGIN) return;
@@ -428,8 +629,10 @@
             case 'update':
                 article.innerHTML = m.html;
                 updateLarge(); // before any layout of the new content
-                enhance();
+                enhance().then(refreshFind); // again once math and diagrams are in
+                refreshFind();
                 break;
+            case 'find': openFind(); break;
             case 'theme': applyTheme(m.theme); break;
             case 'toc': setToc(m.visible); break;
             case 'zoom': applyZoom(m.zoom); break;

@@ -216,6 +216,9 @@ body.toc-empty #content {
 
 .markdown-body pre:hover .code-lang { opacity: 0; }
 
+/* The label gets its own row so long first lines don't run under it. */
+.markdown-body pre.has-lang { padding-top: 30px; }
+
 /* ---------- mermaid & math ---------- */
 .markdown-body .mermaid {
     display: flex;
@@ -275,6 +278,77 @@ body.toc-empty #content {
     background: #fff;
 }
 
+/* ---------- find in page ---------- */
+#find-bar {
+    position: fixed;
+    top: 12px;
+    right: 20px;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 6px;
+    border: 1px solid var(--toc-border);
+    border-radius: 8px;
+    background: var(--card-bg);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
+    color: var(--toc-title);
+    font: 13px "Segoe UI", system-ui, sans-serif;
+}
+
+#find-bar[hidden] { display: none; }
+
+#find-input {
+    width: 200px;
+    padding: 4px 8px;
+    border: 1px solid var(--copy-border);
+    border-radius: 4px;
+    outline: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+
+#find-input:focus { border-color: var(--toc-active); }
+#find-bar.no-match #find-input { border-color: var(--broken); }
+
+#find-count {
+    min-width: 72px;
+    padding: 0 6px;
+    color: var(--toc-text);
+    text-align: center;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+#find-bar.no-match #find-count { color: var(--broken); }
+
+.find-btn {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    font: 12px "Segoe Fluent Icons", "Segoe MDL2 Assets";
+    cursor: pointer;
+}
+
+.find-btn:hover { background: var(--toc-hover-bg); }
+
+::highlight(mv-find) {
+    background-color: rgba(250, 204, 21, 0.4);
+    color: inherit;
+}
+
+::highlight(mv-find-current) {
+    background-color: #f59e0b;
+    color: #000;
+}
+
 .flash {
     animation: flash 1.2s ease-out;
 }
@@ -287,7 +361,9 @@ body.toc-empty #content {
 /* ---------- print ---------- */
 @media print {
     html, body { background: #fff; }
-    #toc, #lightbox, .code-copy-btn, .code-lang { display: none !important; }
+    #toc, #lightbox, #find-bar, .code-copy-btn, .code-lang { display: none !important; }
+    .markdown-body pre.has-lang { padding-top: 16px; }
+    ::highlight(mv-find), ::highlight(mv-find-current) { background-color: transparent; color: inherit; }
     #content { margin: 0 !important; padding: 0 !important; }
     .markdown-body {
         max-width: none;
