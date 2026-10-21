@@ -167,6 +167,17 @@ flowchart LR
   in a document can't execute code. MarkView sends no telemetry. The only network requests come from
   remote images or links in your documents.
 
+## Reporting a problem
+
+[Open an issue](https://github.com/jgrimard/MarkView/issues/new?template=bug_report.yml). If MarkView closed
+unexpectedly, include its `crash.log`. MarkView writes the error and where it happened to this file before
+it closes, and never sends it anywhere. It's in the same folder as the settings (**⋯ > About MarkView** shows it):
+
+- Microsoft Store version: `%LOCALAPPDATA%\Packages\jgrimard.388874D7F8808_wgz7aqx4kv1ge\LocalState\crash.log`
+- Portable exe: `%LOCALAPPDATA%\MarkView\crash.log`
+
+If a particular document triggers the problem, attaching it (or the smallest part that still does) helps most.
+
 ## Building from source
 
 Prerequisites: [Rust](https://rustup.rs/) (stable, 1.82 or newer) and the MSVC build tools. You only need

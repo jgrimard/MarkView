@@ -1,0 +1,57 @@
+name: Bug report
+description: Something doesn't work, or MarkView closed unexpectedly.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. MarkView sends no telemetry, so reports like this are the only way crashes reach the developer.
+
+        **If MarkView closed unexpectedly**, it wrote a `crash.log` file first. It's in the same folder as MarkView's settings, which **⋯ > About MarkView** shows:
+        - Microsoft Store version: `%LOCALAPPDATA%\Packages\jgrimard.388874D7F8808_wgz7aqx4kv1ge\LocalState\crash.log`
+        - Portable exe: `%LOCALAPPDATA%\MarkView\crash.log`
+
+        You can paste that path into File Explorer's address bar. The log only holds the error, its location in MarkView's code and the time; check it before pasting if you like.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: If a particular document causes it, attach it or paste the smallest part that still does. Links and image paths matter, especially ones with spaces or non-English characters.
+      placeholder: |
+        1. Open a document containing ...
+        2. ...
+  - type: textarea
+    id: crash-log
+    attributes:
+      label: crash.log
+      description: Paste the most recent entry, if MarkView closed unexpectedly.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: MarkView version
+      description: Shown in ⋯ > About MarkView.
+      placeholder: "1.3.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: Installed from
+      options:
+        - Microsoft Store
+        - Portable exe from GitHub
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: Settings > System > About, for example "Windows 11 24H2".
