@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Creates a submission (or reuses the pending one), replaces the package with
-    dist\MarkView_<version>_x64.msix, and sets "What's new in this version" for every listing language from
+    dist\MarkView_<version>_x64.msixupload (the .msix plus its symbols, from build-msix.ps1), and sets "What's new in this version" for every listing language from
     packaging\store\release-notes.json (language code -> text). Everything else (description, screenshots,
     pricing, ...) is carried over unchanged from the current submission.
 
@@ -49,7 +49,9 @@ if (-not $ListingOnly) {
     if (-not $Package) {
         $cargoToml = Get-Content (Join-Path $root 'src-tauri\Cargo.toml') -Raw
         if ($cargoToml -notmatch '(?m)^version\s*=\s*"(\d+\.\d+\.\d+)"') { throw 'No a.b.c version in Cargo.toml' }
-        $Package = Join-Path $root "dist\MarkView_$($Matches[1]).0_x64.msix"
+        # The .msixupload carries the symbols for crash reports; fall back to the bare .msix.
+        $Package = Join-Path $root "dist\MarkView_$($Matches[1]).0_x64.msixupload"
+        if (-not (Test-Path $Package)) { $Package = [IO.Path]::ChangeExtension($Package, '.msix') }
     }
     if (-not (Test-Path $Package)) { throw "Package not found: $Package (run build-msix.ps1 first)" }
 }

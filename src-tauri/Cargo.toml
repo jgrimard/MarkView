@@ -38,5 +38,8 @@ windows-core = "0.62"
 opt-level = "s"
 lto = true
 codegen-units = 1
+# Function names and line numbers go to a separate markview.pdb, not the exe. build-msix.ps1 sends it to
+# Partner Center so its crash reports show call stacks.
+debug = "line-tables-only"
 panic = "abort"
 strip = true

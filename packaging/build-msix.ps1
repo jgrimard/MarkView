@@ -4,8 +4,9 @@
 
 .DESCRIPTION
     Builds the release exe, lays out the package (manifest, exe, logo assets, localized strings, resources.pri) under
-    dist\msix\<arch>, and packs it into dist\MarkView_<version>_<arch>.msix, ready to upload to Partner Center.
-    The Store signs the package itself, so this script does not.
+    dist\msix\<arch>, and packs it into dist\MarkView_<version>_<arch>.msix. For Partner Center it also writes
+    dist\MarkView_<version>_<arch>.msixupload, the .msix together with its debug symbols, so the Store's crash
+    reports show call stacks. The Store signs the package itself, so this script does not.
 
     Needs the Windows 10/11 SDK (makeappx.exe, makepri.exe) and Rust. Works in PowerShell 5.1 and 7.
 
@@ -166,6 +167,22 @@ Step "Packing $msix"
 $output = & $makeappx pack /d $layout /p $msix /o
 if ($LASTEXITCODE) { $output; throw "makeappx pack failed ($LASTEXITCODE)" }
 
+# ---------------------------------------------------------------- symbols
+
+# Partner Center turns crash reports into call stacks when the PDB comes with the package: an .msixupload
+# is a zip of the .msix and an .appxsym, which is a zip of the PDB.
+$pdb = Join-Path $tauri "target\$target\release\markview.pdb"
+if (-not (Test-Path $pdb)) { throw "$pdb not found (the release profile in Cargo.toml sets debug)" }
+$appxsym = Join-Path $root "dist\MarkView_${version}_$Arch.appxsym"
+$upload = Join-Path $root "dist\MarkView_${version}_$Arch.msixupload"
+Step "Packing $upload"
+# Compress-Archive only writes .zip names, so rename afterwards.
+Compress-Archive -Path $pdb -DestinationPath "$appxsym.zip" -Force
+Move-Item "$appxsym.zip" $appxsym -Force
+Compress-Archive -Path $msix, $appxsym -DestinationPath "$upload.zip" -Force
+Move-Item "$upload.zip" $upload -Force
+Remove-Item $appxsym
+
 if ($Install) {
     Step 'Registering the layout for this user'
     $name = ([xml]$manifest).Package.Identity.Name
@@ -173,4 +190,4 @@ if ($Install) {
     Add-AppxPackage -Register (Join-Path $layout 'AppxManifest.xml')
 }
 
-Step "Done: $msix"
+Step "Done: $upload (upload this; it holds $(Split-Path $msix -Leaf) and its symbols)"
