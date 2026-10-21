@@ -58,6 +58,11 @@ fn is_drive(seg: &str) -> bool {
     b.len() == 2 && b[0].is_ascii_alphabetic() && b[1] == b':'
 }
 
+/// `file:` followed by something. Checks bytes: slicing a str there panics inside a multi-byte character.
+fn is_file_scheme(s: &str) -> bool {
+    s.len() > 5 && s.as_bytes()[..5].eq_ignore_ascii_case(b"file:")
+}
+
 /// Path part of a URL on the document origin (still percent-encoded), or None for other URLs.
 pub fn local_path_part(url: &str) -> Option<&str> {
     let rest = url
@@ -96,7 +101,7 @@ pub fn url_to_path(url: &str) -> Option<(PathBuf, Option<String>)> {
     if let Some(path) = local_path_part(url) {
         return url_path_to_fs(path).map(|p| (p, fragment));
     }
-    if url.len() > 5 && url[..5].eq_ignore_ascii_case("file:") {
+    if is_file_scheme(url) {
         return file_url_to_path(url).map(|p| (p, fragment));
     }
     None
@@ -108,7 +113,7 @@ fn file_url_to_path(url: &str) -> Option<PathBuf> {
     rest = &rest[..end];
     let decoded = percent_decode_str(rest).decode_utf8_lossy().to_string();
     let trimmed = decoded.trim_start_matches('/');
-    if trimmed.len() >= 2 && is_drive(&trimmed[..2]) {
+    if trimmed.get(..2).is_some_and(is_drive) {
         return Some(PathBuf::from(trimmed.replace('/', "\\")));
     }
     // file://server/share/x  ->  \\server\share\x
@@ -125,7 +130,7 @@ pub fn rewrite_absolute(value: &str) -> Option<String> {
     let v = value.trim();
     let decoded = percent_decode_str(v).decode_utf8_lossy().to_string();
 
-    if decoded.len() > 5 && decoded[..5].eq_ignore_ascii_case("file:") {
+    if is_file_scheme(&decoded) {
         let path = file_url_to_path(v)?;
         let fragment = v.find('#').map(|i| &v[i..]).unwrap_or("");
         return Some(path_to_url(&path) + fragment);
@@ -183,6 +188,24 @@ mod tests {
         let (p, f) = url_to_path("http://mdfile.localhost/C:/d/other.md#images").unwrap();
         assert_eq!(p, Path::new(r"C:\d\other.md"));
         assert_eq!(f.as_deref(), Some("images"));
+    }
+
+    #[test]
+    fn non_ascii_references_do_not_panic() {
+        // Byte 5 (or 2) falls inside a multi-byte character in each of these.
+        for v in ["画像/夕焼け.jpg", "日本語.md", "файл.md", "żółw.png", "#第一章", "\u{FFFD}\u{FFFD}x", "%E7%94%BB%E5%83%8F.png"] {
+            assert!(rewrite_absolute(v).is_none(), "{v}");
+            assert!(url_to_path(v).is_none(), "{v}");
+        }
+        assert!(rewrite_absolute("file:///写真/a.png").is_none()); // no drive: not a usable path
+        assert_eq!(
+            rewrite_absolute("file:///D:/写真/a.png").unwrap(),
+            "http://mdfile.localhost/D:/%E5%86%99%E7%9C%9F/a.png"
+        );
+        assert_eq!(
+            rewrite_absolute(r"C:\写真\夕焼け.jpg").unwrap(),
+            "http://mdfile.localhost/C:/%E5%86%99%E7%9C%9F/%E5%A4%95%E7%84%BC%E3%81%91.jpg"
+        );
     }
 
     #[test]
