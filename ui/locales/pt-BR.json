@@ -59,6 +59,9 @@
   "unsaved.beforeClosing": "Salvar as alterações em \"{name}\" antes de fechar?",
   "unsaved.beforeLeaving": "Salvar as alterações em \"{name}\" antes de sair dele?",
   "unsaved.dontSave": "Não salvar",
+  "encoding.title": "Salvar como UTF-8?",
+  "encoding.text": "\"{name}\" usa a codificação {encoding}, que não consegue armazenar alguns dos caracteres dele. Salvar como UTF-8?",
+  "encoding.saveUtf8": "Salvar como UTF-8",
 
   "banner.openFailed": "Não é possível abrir o arquivo",
   "banner.saveFailed": "Falha ao salvar",

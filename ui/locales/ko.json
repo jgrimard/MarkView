@@ -59,6 +59,9 @@
   "unsaved.beforeClosing": "닫기 전에 \"{name}\"의 변경 내용을 저장하시겠습니까?",
   "unsaved.beforeLeaving": "이동하기 전에 \"{name}\"의 변경 내용을 저장하시겠습니까?",
   "unsaved.dontSave": "저장 안 함",
+  "encoding.title": "UTF-8로 저장하시겠습니까?",
+  "encoding.text": "\"{name}\"은(는) {encoding} 인코딩을 사용하므로 일부 문자를 저장할 수 없습니다. 대신 UTF-8로 저장하시겠습니까?",
+  "encoding.saveUtf8": "UTF-8로 저장",
 
   "banner.openFailed": "파일을 열 수 없습니다",
   "banner.saveFailed": "저장하지 못했습니다",

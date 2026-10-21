@@ -70,6 +70,7 @@
             this.example = false; // the built-in examples: no file until saved as one
             this.text = '';
             this.saved = '';
+            this.encoding = 'UTF-8';
             this.bom = false;
             this.mode = 'view';
             this.back = [];
@@ -123,6 +124,7 @@
             }
             this.path = path;
             this.text = this.saved = file.text;
+            this.encoding = file.encoding;
             this.bom = file.bom;
             hideBanner(this);
             invoke('add_recent', { path });
@@ -330,14 +332,29 @@
     async function save(doc) {
         if (!doc.path) return saveAs(doc);
         try {
-            await invoke('write_file', { path: doc.path, text: doc.text, bom: doc.bom });
+            await invoke('write_file', { path: doc.path, text: doc.text, encoding: doc.encoding, bom: doc.bom });
             doc.saved = doc.text;
             updateChrome();
             return true;
         } catch (e) {
+            if (e === 'unmappable') return saveAsUtf8(doc);
             showBanner(doc, 'error', t('banner.saveFailed'), String(e));
             return false;
         }
+    }
+
+    // The file's legacy encoding (Shift_JIS, windows-1252, ...) can't store some of the text.
+    async function saveAsUtf8(doc) {
+        const choice = await showDialog({
+            title: t('encoding.title'),
+            content: t('encoding.text', { name: doc.title, encoding: doc.encoding }),
+            primary: t('encoding.saveUtf8'),
+            close: t('common.cancel'),
+        });
+        if (choice !== 'primary') return false;
+        doc.encoding = 'UTF-8';
+        doc.bom = false;
+        return save(doc);
     }
 
     async function saveAs(doc) {
@@ -398,6 +415,7 @@
         if (file.text === doc.saved) return; // our own save, or a touch without content change
         const reload = () => {
             doc.text = doc.saved = file.text;
+            doc.encoding = file.encoding;
             doc.bom = file.bom;
             doc.editor?.setText(doc.text);
             doc.pushRender();
@@ -532,6 +550,7 @@
             try {
                 const file = await invoke('read_file', { path: doc.path });
                 doc.text = doc.saved = file.text;
+                doc.encoding = file.encoding;
                 doc.bom = file.bom;
                 doc.editor?.setText(doc.text);
             } catch (e) {

@@ -59,6 +59,9 @@
   "unsaved.beforeClosing": "Enregistrer les modifications apportées à « {name} » avant de fermer ?",
   "unsaved.beforeLeaving": "Enregistrer les modifications apportées à « {name} » avant de le quitter ?",
   "unsaved.dontSave": "Ne pas enregistrer",
+  "encoding.title": "Enregistrer en UTF-8 ?",
+  "encoding.text": "« {name} » utilise l'encodage {encoding}, qui ne peut pas stocker certains de ses caractères. L'enregistrer plutôt en UTF-8 ?",
+  "encoding.saveUtf8": "Enregistrer en UTF-8",
 
   "banner.openFailed": "Impossible d'ouvrir le fichier",
   "banner.saveFailed": "Échec de l'enregistrement",

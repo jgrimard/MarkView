@@ -59,6 +59,9 @@
   "unsaved.beforeClosing": "閉じる前に「{name}」の変更を保存しますか?",
   "unsaved.beforeLeaving": "移動する前に「{name}」の変更を保存しますか?",
   "unsaved.dontSave": "保存しない",
+  "encoding.title": "UTF-8 で保存しますか?",
+  "encoding.text": "「{name}」の文字コード {encoding} では、含まれている一部の文字を保存できません。代わりに UTF-8 で保存しますか?",
+  "encoding.saveUtf8": "UTF-8 で保存",
 
   "banner.openFailed": "ファイルを開けません",
   "banner.saveFailed": "保存できませんでした",

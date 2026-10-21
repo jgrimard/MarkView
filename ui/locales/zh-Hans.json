@@ -59,6 +59,9 @@
   "unsaved.beforeClosing": "关闭前是否保存对“{name}”的更改？",
   "unsaved.beforeLeaving": "离开前是否保存对“{name}”的更改？",
   "unsaved.dontSave": "不保存",
+  "encoding.title": "以 UTF-8 保存？",
+  "encoding.text": "“{name}”使用 {encoding} 编码，无法保存其中的部分字符。是否改为以 UTF-8 保存？",
+  "encoding.saveUtf8": "以 UTF-8 保存",
 
   "banner.openFailed": "无法打开文件",
   "banner.saveFailed": "保存失败",

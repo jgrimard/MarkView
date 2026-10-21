@@ -59,6 +59,9 @@
   "unsaved.beforeClosing": "Änderungen an „{name}“ vor dem Schließen speichern?",
   "unsaved.beforeLeaving": "Änderungen an „{name}“ speichern, bevor Sie das Dokument verlassen?",
   "unsaved.dontSave": "Nicht speichern",
+  "encoding.title": "Als UTF-8 speichern?",
+  "encoding.text": "„{name}“ verwendet die Codierung {encoding}, in der sich einige der enthaltenen Zeichen nicht speichern lassen. Stattdessen als UTF-8 speichern?",
+  "encoding.saveUtf8": "Als UTF-8 speichern",
 
   "banner.openFailed": "Die Datei kann nicht geöffnet werden",
   "banner.saveFailed": "Speichern fehlgeschlagen",

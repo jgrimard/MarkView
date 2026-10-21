@@ -67,8 +67,8 @@ pub fn handle(app: &AppHandle, request: &Request<Vec<u8>>) -> Response<Cow<'stat
             .and_then(|token| app.state::<PendingPrints>().0.lock().unwrap().get(token).cloned());
         let text = match pending {
             Some(t) => t,
-            None => match read_text(&path) {
-                Ok((t, _)) => t,
+            None => match crate::textfile::read(&path) {
+                Ok(f) => f.text,
                 Err(e) => return error(&format!("Cannot read {}: {e}", path.display())),
             },
         };
@@ -175,14 +175,6 @@ fn system_prefers_dark() -> bool {
 #[cfg(not(windows))]
 fn system_prefers_dark() -> bool {
     false
-}
-
-/// Reads a text file; returns the text and whether it started with a UTF-8 byte order mark.
-pub fn read_text(path: &Path) -> std::io::Result<(String, bool)> {
-    let bytes = std::fs::read(path)?;
-    let bom = bytes.starts_with(&[0xEF, 0xBB, 0xBF]);
-    let body = if bom { &bytes[3..] } else { &bytes[..] };
-    Ok((String::from_utf8_lossy(body).into_owned(), bom))
 }
 
 fn escape_html(s: &str) -> String {

@@ -59,6 +59,9 @@
   "unsaved.beforeClosing": "Сохранить изменения в «{name}» перед закрытием?",
   "unsaved.beforeLeaving": "Сохранить изменения в «{name}» перед переходом?",
   "unsaved.dontSave": "Не сохранять",
+  "encoding.title": "Сохранить в UTF-8?",
+  "encoding.text": "«{name}» использует кодировку {encoding}, в которой нельзя сохранить некоторые символы документа. Сохранить его в UTF-8?",
+  "encoding.saveUtf8": "Сохранить в UTF-8",
 
   "banner.openFailed": "Не удаётся открыть файл",
   "banner.saveFailed": "Не удалось сохранить",

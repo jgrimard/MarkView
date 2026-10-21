@@ -59,6 +59,9 @@
   "unsaved.beforeClosing": "¿Quieres guardar los cambios de \"{name}\" antes de cerrar?",
   "unsaved.beforeLeaving": "¿Quieres guardar los cambios de \"{name}\" antes de salir del documento?",
   "unsaved.dontSave": "No guardar",
+  "encoding.title": "¿Guardar como UTF-8?",
+  "encoding.text": "\"{name}\" usa la codificación {encoding}, que no puede almacenar algunos de sus caracteres. ¿Quieres guardarlo como UTF-8?",
+  "encoding.saveUtf8": "Guardar como UTF-8",
 
   "banner.openFailed": "No se puede abrir el archivo",
   "banner.saveFailed": "Error al guardar",

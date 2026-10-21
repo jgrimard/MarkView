@@ -7,6 +7,7 @@ mod pdf;
 mod render;
 mod server;
 mod settings;
+mod textfile;
 mod urlmap;
 mod watcher;
 mod windows;
@@ -44,23 +45,23 @@ fn has_ext(path: &Path, list: &[&str]) -> bool {
 #[derive(Serialize)]
 struct FileText {
     text: String,
+    encoding: &'static str,
     bom: bool,
 }
 
 #[tauri::command]
 fn read_file(path: String) -> Result<FileText, String> {
-    server::read_text(Path::new(&path))
-        .map(|(text, bom)| FileText { text, bom })
+    textfile::read(Path::new(&path))
+        .map(|f| FileText { text: f.text, encoding: f.encoding, bom: f.bom })
         .map_err(|e| e.to_string())
 }
 
+/// Error the shell recognizes: the text has characters the file's encoding can't store.
+const UNMAPPABLE: &str = "unmappable";
+
 #[tauri::command]
-fn write_file(path: String, text: String, bom: bool) -> Result<(), String> {
-    let mut bytes = Vec::with_capacity(text.len() + 3);
-    if bom {
-        bytes.extend_from_slice(&[0xEF, 0xBB, 0xBF]);
-    }
-    bytes.extend_from_slice(text.as_bytes());
+fn write_file(path: String, text: String, encoding: String, bom: bool) -> Result<(), String> {
+    let bytes = textfile::encode(&text, &encoding, bom).map_err(|_| UNMAPPABLE.to_string())?;
     std::fs::write(&path, bytes).map_err(|e| e.to_string())
 }
 

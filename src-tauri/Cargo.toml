@@ -24,6 +24,8 @@ open = "5"
 window-vibrancy = "0.8"
 base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+encoding_rs = "0.8"
+chardetng = "0.1"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"

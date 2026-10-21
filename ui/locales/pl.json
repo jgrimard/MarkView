@@ -59,6 +59,9 @@
   "unsaved.beforeClosing": "Czy zapisać zmiany w „{name}” przed zamknięciem?",
   "unsaved.beforeLeaving": "Czy zapisać zmiany w „{name}” przed opuszczeniem dokumentu?",
   "unsaved.dontSave": "Nie zapisuj",
+  "encoding.title": "Zapisać jako UTF-8?",
+  "encoding.text": "„{name}” używa kodowania {encoding}, w którym nie można zapisać niektórych znaków z tego dokumentu. Czy zapisać go zamiast tego w UTF-8?",
+  "encoding.saveUtf8": "Zapisz jako UTF-8",
 
   "banner.openFailed": "Nie można otworzyć pliku",
   "banner.saveFailed": "Zapisywanie nie powiodło się",

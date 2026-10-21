@@ -59,6 +59,9 @@
   "unsaved.beforeClosing": "Wijzigingen in ‘{name}’ opslaan voordat u sluit?",
   "unsaved.beforeLeaving": "Wijzigingen in ‘{name}’ opslaan voordat u het document verlaat?",
   "unsaved.dontSave": "Niet opslaan",
+  "encoding.title": "Opslaan als UTF-8?",
+  "encoding.text": "‘{name}’ gebruikt de codering {encoding}, waarin sommige tekens niet kunnen worden opgeslagen. In plaats daarvan opslaan als UTF-8?",
+  "encoding.saveUtf8": "Opslaan als UTF-8",
 
   "banner.openFailed": "Kan bestand niet openen",
   "banner.saveFailed": "Opslaan mislukt",

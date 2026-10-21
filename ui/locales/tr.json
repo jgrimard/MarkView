@@ -59,6 +59,9 @@
   "unsaved.beforeClosing": "Kapatmadan önce \"{name}\" belgesindeki değişiklikler kaydedilsin mi?",
   "unsaved.beforeLeaving": "Ayrılmadan önce \"{name}\" belgesindeki değişiklikler kaydedilsin mi?",
   "unsaved.dontSave": "Kaydetme",
+  "encoding.title": "UTF-8 olarak kaydedilsin mi?",
+  "encoding.text": "\"{name}\" belgesi {encoding} kodlamasını kullanıyor ve bu kodlama belgedeki bazı karakterleri saklayamıyor. Bunun yerine UTF-8 olarak kaydedilsin mi?",
+  "encoding.saveUtf8": "UTF-8 olarak kaydet",
 
   "banner.openFailed": "Dosya açılamıyor",
   "banner.saveFailed": "Kaydetme başarısız oldu",
