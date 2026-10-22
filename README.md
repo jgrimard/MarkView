@@ -104,7 +104,8 @@ keeps it up to date and adds it to the **Open with** list for `.md` files, with 
 
 ### Portable exe
 
-1. Download `MarkView.exe` from the [latest release](https://github.com/jgrimard/MarkView/releases/latest).
+1. Download `MarkView.exe` from the [latest release](https://github.com/jgrimard/MarkView/releases/latest)
+   (`MarkView-arm64.exe` on ARM PCs such as Snapdragon laptops).
 2. Put it in a permanent folder, for example `%LOCALAPPDATA%\Programs\MarkView\`.
 3. Run it. MarkView asks whether it should open `.md` files. If you say yes, Windows Settings opens so you can confirm it as the default app.
 
@@ -121,7 +122,7 @@ MarkView.exe README.md docs\guide.md
 
 ### Requirements
 
-- Windows 10 or 11 (x64)
+- Windows 10 or 11 (x64 or ARM64)
 - [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/). It's preinstalled on Windows 11 and on up-to-date Windows 10.
 
 ## Keyboard shortcuts
@@ -203,9 +204,14 @@ npm run build
 To build the Microsoft Store package (needs the Windows SDK for `makeappx` and `makepri`):
 
 ```powershell
-.\packaging\build-msix.ps1            # -> dist\MarkView_<version>_x64.msix, ready for Partner Center
-.\packaging\build-msix.ps1 -Install   # also registers it for this user to try it (needs Developer Mode)
+.\packaging\build-msix.ps1              # -> dist\MarkView_<version>_x64.msixupload, ready for Partner Center
+.\packaging\build-msix.ps1 -Arch arm64  # -> dist\MarkView_<version>_arm64.msixupload
+.\packaging\build-msix.ps1 -Install     # also registers it for this user to try it (needs Developer Mode)
+.\packaging\publish-store.ps1           # uploads both packages as a draft submission (-Commit to submit)
 ```
+
+The arm64 build needs `rustup target add aarch64-pc-windows-msvc` and the Visual Studio component
+*MSVC C++ ARM64/ARM64EC build tools*.
 
 The Store build gets its `.md` association from [`packaging/AppxManifest.xml`](packaging/AppxManifest.xml)
 instead of the registry, and keeps its settings in its package folder.

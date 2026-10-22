@@ -3,8 +3,10 @@
     Publishes a MarkView update to the Microsoft Store through the Store submission API.
 
 .DESCRIPTION
-    Creates a submission (or reuses the pending one), replaces the package with
-    dist\MarkView_<version>_x64.msixupload (the .msix plus its symbols, from build-msix.ps1), and sets "What's new in this version" for every listing language from
+    Creates a submission (or reuses the pending one), replaces the packages with
+    dist\MarkView_<version>_x64.msixupload and dist\MarkView_<version>_arm64.msixupload (each the .msix plus its
+    symbols, from build-msix.ps1; the Store gives every PC the one for its processor). Packages already in the
+    submission under the same file name are kept rather than uploaded again. It also sets "What's new in this version" for every listing language from
     packaging\store\release-notes.json (language code -> text). Everything else (description, screenshots,
     pricing, ...) is carried over unchanged from the current submission.
 
@@ -26,7 +28,7 @@
 #>
 #Requires -Version 7
 param(
-    [string] $Package,
+    [string[]] $Package,
     [string] $ReleaseNotes,
     [switch] $ListingOnly,
     [switch] $Commit
@@ -50,10 +52,14 @@ if (-not $ListingOnly) {
         $cargoToml = Get-Content (Join-Path $root 'src-tauri\Cargo.toml') -Raw
         if ($cargoToml -notmatch '(?m)^version\s*=\s*"(\d+\.\d+\.\d+)"') { throw 'No a.b.c version in Cargo.toml' }
         # The .msixupload carries the symbols for crash reports; fall back to the bare .msix.
-        $Package = Join-Path $root "dist\MarkView_$($Matches[1]).0_x64.msixupload"
-        if (-not (Test-Path $Package)) { $Package = [IO.Path]::ChangeExtension($Package, '.msix') }
+        $Package = foreach ($arch in 'x64', 'arm64') {
+            $p = Join-Path $root "dist\MarkView_$($Matches[1]).0_$arch.msixupload"
+            if (Test-Path $p) { $p } else { [IO.Path]::ChangeExtension($p, '.msix') }
+        }
     }
-    if (-not (Test-Path $Package)) { throw "Package not found: $Package (run build-msix.ps1 first)" }
+    foreach ($p in $Package) {
+        if (-not (Test-Path $p)) { throw "Package not found: $p (run build-msix.ps1 for each architecture first)" }
+    }
 }
 if (-not $ReleaseNotes) { $ReleaseNotes = Join-Path $root 'packaging\store\release-notes.json' }
 $notes = Get-Content $ReleaseNotes -Raw -Encoding utf8 | ConvertFrom-Json -AsHashtable
@@ -90,13 +96,15 @@ $id = $submission.id
 # ---------------------------------------------------------------- package
 
 if (-not $ListingOnly) {
-    $fileName = Split-Path $Package -Leaf
-    Step "Replacing the package with $fileName"
+    $fileNames = $Package | Split-Path -Leaf
+    Step "Replacing the packages with $($fileNames -join ', ')"
     foreach ($p in $submission.applicationPackages) {
-        if ($p.fileName -ne $fileName) { $p.fileStatus = 'PendingDelete' }
+        if ($p.fileName -notin $fileNames) { $p.fileStatus = 'PendingDelete' }
     }
-    if (-not ($submission.applicationPackages | Where-Object fileName -eq $fileName)) {
-        $submission.applicationPackages += [pscustomobject]@{ fileName = $fileName; fileStatus = 'PendingUpload' }
+    # A package already in the submission (say the x64 one, when only arm64 is new) stays as it is.
+    $uploads = @($Package | Where-Object { (Split-Path $_ -Leaf) -notin $submission.applicationPackages.fileName })
+    foreach ($p in $uploads) {
+        $submission.applicationPackages += [pscustomobject]@{ fileName = (Split-Path $p -Leaf); fileStatus = 'PendingUpload' }
     }
 }
 
@@ -119,10 +127,10 @@ foreach ($listing in $submission.listings.PSObject.Properties) {
 
 # ---------------------------------------------------------------- upload and save
 
-if (-not $ListingOnly) {
+if (-not $ListingOnly -and $uploads) {
     $zip = Join-Path ([IO.Path]::GetTempPath()) "MarkView-store-$id.zip"
-    Compress-Archive -Path $Package -DestinationPath $zip -Force
-    Step "Uploading $fileName ($([math]::Round((Get-Item $zip).Length / 1MB, 1)) MB)"
+    Compress-Archive -Path $uploads -DestinationPath $zip -Force
+    Step "Uploading $(($uploads | Split-Path -Leaf) -join ', ') ($([math]::Round((Get-Item $zip).Length / 1MB, 1)) MB)"
     Invoke-RestMethod -Method Put -Uri $submission.fileUploadUrl -InFile $zip -Headers @{ 'x-ms-blob-type' = 'BlockBlob' }
     Remove-Item $zip
 }
