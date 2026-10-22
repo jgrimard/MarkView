@@ -43,14 +43,16 @@ Welcome! This page is a tour of everything MarkView can display, from simple **b
 
 Start a line with one to six `#` characters. More `#` means a smaller heading. Headings also appear in the table of contents (<kbd>Ctrl</kbd>+<kbd>T</kbd>).
 
-<!-- The samples on this page use HTML headings so they stay out of the table of contents. -->
-<div style="border:1px solid rgba(128,128,128,0.35); border-radius:6px; padding:4px 16px">
-<h1>Heading 1</h1>
-<h2>Heading 2</h2>
-<h3>Heading 3</h3>
-<h4>Heading 4</h4>
-<h5>Heading 5</h5>
-<h6>Heading 6</h6>
+<!-- The "no-toc" boxes keep these sample headings out of the table of contents. -->
+<div class="no-toc" style="border:1px solid rgba(128,128,128,0.35); border-radius:6px; padding:4px 16px">
+
+# Heading 1
+## Heading 2
+### Heading 3
+#### Heading 4
+##### Heading 5
+###### Heading 6
+
 </div>
 
 ```markdown
@@ -64,9 +66,14 @@ Start a line with one to six `#` characters. More `#` means a smaller heading. H
 
 The two largest levels can also be written by underlining the text with `=` or `-`:
 
-<div style="border:1px solid rgba(128,128,128,0.35); border-radius:6px; padding:4px 16px">
-<h1>Underlined heading 1</h1>
-<h2>Underlined heading 2</h2>
+<div class="no-toc" style="border:1px solid rgba(128,128,128,0.35); border-radius:6px; padding:4px 16px">
+
+Underlined heading 1
+====================
+
+Underlined heading 2
+--------------------
+
 </div>
 
 ```markdown

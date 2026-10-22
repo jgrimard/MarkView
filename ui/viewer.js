@@ -203,7 +203,8 @@
     }
 
     function buildToc() {
-        headings = [...article.querySelectorAll('h1[id], h2[id], h3[id], h4[id]')];
+        // Headings inside a no-toc block (the examples' heading samples) are left out.
+        headings = [...article.querySelectorAll('h1[id], h2[id], h3[id], h4[id]')].filter((h) => !h.closest('.no-toc'));
         tocList.replaceChildren(...headings.map((h) => {
             const li = document.createElement('li');
             li.className = 'level-' + h.tagName.substring(1);

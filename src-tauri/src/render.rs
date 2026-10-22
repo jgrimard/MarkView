@@ -215,6 +215,9 @@ mod tests {
             "<table",
             "<dl",
             "id=\"font-size-and-alignment\"",
+            "id=\"heading-6\"",
+            "id=\"underlined-heading-1\"",
+            "id=\"underlined-heading-2\"",
             "start=\"7\"",
             "examples-images/dusk.jpg",
         ] {
