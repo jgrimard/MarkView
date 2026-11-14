@@ -73,6 +73,7 @@
   "banner.changed": "Arquivo alterado no disco",
   "banner.changedText": "Outro programa modificou este arquivo. Recarregá-lo e perder suas edições?",
   "banner.linkMissing": "Destino do link não encontrado",
+  "banner.linkNetwork": "Link para um local de rede",
   "banner.reloadFailed": "Não é possível recarregar",
   "banner.pdfNeedsSave": "A exportação para PDF precisa que o documento esteja salvo para encontrar as imagens dele.",
   "banner.pdfExporting": "Exportando PDF...",

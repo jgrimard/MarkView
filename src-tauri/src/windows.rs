@@ -65,7 +65,16 @@ pub fn create_window(app: &AppHandle, cascade_from: Option<&str>, initial: Vec<O
     if let Some(dir) = crate::package::webview_data_dir() {
         builder = builder.data_directory(dir);
     }
-    let window = builder.build()?;
+    let window = match builder.build() {
+        Ok(window) => window,
+        Err(e) => {
+            // No entry may stay behind: later documents would be queued on it forever.
+            let mut r = registry.0.lock().unwrap();
+            r.windows.remove(&label);
+            r.order.retain(|x| x != &label);
+            return Err(e);
+        }
+    };
 
     place_window(app, &window, cascade_from, settings.window);
 
@@ -110,10 +119,11 @@ pub fn create_window(app: &AppHandle, cascade_from: Option<&str>, initial: Vec<O
 fn place_window(app: &AppHandle, window: &WebviewWindow, cascade_from: Option<&str>, saved: Option<Placement>) {
     if let Some(from) = cascade_from.and_then(|l| app.get_webview_window(l)) {
         if !from.is_maximized().unwrap_or(false) {
-            if let (Ok(pos), Ok(size)) = (from.outer_position(), from.outer_size()) {
+            if let (Ok(pos), Ok(size), Ok(inner)) = (from.outer_position(), from.outer_size(), from.inner_size()) {
                 let scale = from.scale_factor().unwrap_or(1.0);
                 let offset = (32.0 * scale) as i32;
-                let _ = window.set_size(size);
+                // set_size takes the inner size; given the outer one, every cascaded window grew by its frame.
+                let _ = window.set_size(inner);
                 let mut next = PhysicalPosition::new(pos.x + offset, pos.y + offset);
                 if let Ok(Some(monitor)) = from.current_monitor() {
                     let area = monitor.work_area();
@@ -232,12 +242,15 @@ pub fn open_path(app: &AppHandle, path: PathBuf, fragment: Option<String>, sourc
     let path = std::path::absolute(&path).unwrap_or(path);
     let path_str = path.to_string_lossy().to_string();
 
-    // Already open somewhere: bring that window forward.
+    // Already open somewhere (or about to be, in a window that is still loading): bring that window forward.
     let owner = {
         let r = app.state::<WindowRegistry>().inner().0.lock().unwrap();
+        let same = |p: &String| p.eq_ignore_ascii_case(&path_str);
         r.windows
             .iter()
-            .find(|(_, e)| e.docs.iter().any(|d| d.eq_ignore_ascii_case(&path_str)))
+            .find(|(_, e)| {
+                e.docs.iter().any(same) || e.pending.iter().any(|r| matches!(r, OpenRequest::Open { path, .. } if same(path)))
+            })
             .map(|(l, _)| l.clone())
     };
     if let Some(label) = owner {

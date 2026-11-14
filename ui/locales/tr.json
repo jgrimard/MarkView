@@ -73,6 +73,7 @@
   "banner.changed": "Dosya diskte değişti",
   "banner.changedText": "Başka bir program bu dosyayı değiştirdi. Yeniden yüklenip düzenlemeleriniz atılsın mı?",
   "banner.linkMissing": "Bağlantı hedefi bulunamadı",
+  "banner.linkNetwork": "Ağ konumuna bağlantı",
   "banner.reloadFailed": "Yeniden yüklenemiyor",
   "banner.pdfNeedsSave": "PDF olarak dışa aktarmak için belgenin kaydedilmiş olması gerekir; böylece resimleri bulunabilir.",
   "banner.pdfExporting": "PDF dışa aktarılıyor...",

@@ -73,6 +73,7 @@
   "banner.changed": "Datei auf dem Datenträger geändert",
   "banner.changedText": "Ein anderes Programm hat diese Datei geändert. Neu laden und Ihre Änderungen verwerfen?",
   "banner.linkMissing": "Linkziel nicht gefunden",
+  "banner.linkNetwork": "Link zu einem Netzwerkspeicherort",
   "banner.reloadFailed": "Neu laden nicht möglich",
   "banner.pdfNeedsSave": "Für den PDF-Export muss das Dokument gespeichert sein, damit seine Bilder gefunden werden.",
   "banner.pdfExporting": "PDF wird exportiert...",

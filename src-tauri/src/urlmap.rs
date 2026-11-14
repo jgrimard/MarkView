@@ -128,24 +128,62 @@ fn file_url_to_path(url: &str) -> Option<PathBuf> {
 /// Returns None for anything else (relative paths, http, data:, ...), which needs no rewriting.
 pub fn rewrite_absolute(value: &str) -> Option<String> {
     let v = value.trim();
-    let decoded = percent_decode_str(v).decode_utf8_lossy().to_string();
+    // Split the fragment off before decoding, so an escaped `#` (%23) stays part of the file name.
+    let (raw_path, fragment) = match v.find('#') {
+        Some(i) if i > 0 => (&v[..i], &v[i..]),
+        _ => (v, ""),
+    };
 
-    if is_file_scheme(&decoded) {
-        let path = file_url_to_path(v)?;
-        let fragment = v.find('#').map(|i| &v[i..]).unwrap_or("");
+    if is_file_scheme(raw_path) {
+        let path = file_url_to_path(raw_path)?;
         return Some(path_to_url(&path) + fragment);
     }
 
+    let decoded = percent_decode_str(raw_path).decode_utf8_lossy();
     let b = decoded.as_bytes();
     let windows_abs = b.len() > 2 && b[0].is_ascii_alphabetic() && b[1] == b':' && (b[2] == b'\\' || b[2] == b'/');
     if !windows_abs && !decoded.starts_with(r"\\") {
         return None;
     }
-    let (path, fragment) = match decoded.find('#') {
-        Some(i) if i > 0 => (&decoded[..i], &decoded[i..]),
-        _ => (decoded.as_str(), ""),
+    Some(path_to_url(Path::new(decoded.as_ref())) + fragment)
+}
+
+/// Where a path leads, for deciding whether a document may make the app touch it.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Location {
+    /// A drive path.
+    Local,
+    /// A share on this server (lower-cased). Windows signs in to a server with the user's credentials
+    /// the moment a path on it is touched, so a document must not get to pick the server.
+    Network(String),
+    /// A device or other namespace path (`\\.\pipe\x`, `\\?\GLOBALROOT\...`): never a document's business.
+    Device,
+}
+
+pub fn location(path: &Path) -> Location {
+    let s = path.to_string_lossy().replace('/', "\\");
+    let Some(rest) = s.strip_prefix(r"\\") else {
+        return Location::Local;
     };
-    Some(path_to_url(Path::new(path)) + fragment)
+    let server = |rest: &str| {
+        let host = rest.split('\\').next().unwrap_or_default().trim().to_lowercase();
+        if host.is_empty() || host.starts_with(['.', '?']) {
+            Location::Device
+        } else {
+            Location::Network(host)
+        }
+    };
+    // `\\?\C:\x` is the long form of a drive path, `\\?\UNC\server\share` of a share.
+    if let Some(verbatim) = rest.strip_prefix(r"?\") {
+        if verbatim.get(..2).is_some_and(is_drive) {
+            return Location::Local;
+        }
+        return match verbatim.get(..4) {
+            Some(prefix) if prefix.eq_ignore_ascii_case(r"UNC\") => server(&verbatim[4..]),
+            _ => Location::Device,
+        };
+    }
+    server(rest)
 }
 
 #[cfg(test)]
@@ -206,6 +244,40 @@ mod tests {
             rewrite_absolute(r"C:\写真\夕焼け.jpg").unwrap(),
             "http://mdfile.localhost/C:/%E5%86%99%E7%9C%9F/%E5%A4%95%E7%84%BC%E3%81%91.jpg"
         );
+    }
+
+    #[test]
+    fn escaped_hashes_stay_in_the_file_name() {
+        assert_eq!(
+            rewrite_absolute("C:/Projects/C%23/a.png").unwrap(),
+            "http://mdfile.localhost/C:/Projects/C%23/a.png"
+        );
+        assert_eq!(
+            rewrite_absolute(r"C:\docs\other.md#part-2").unwrap(),
+            "http://mdfile.localhost/C:/docs/other.md#part-2"
+        );
+        assert_eq!(
+            rewrite_absolute("file:///C:/docs/100%25.md#top").unwrap(),
+            "http://mdfile.localhost/C:/docs/100%25.md#top"
+        );
+    }
+
+    #[test]
+    fn locations_are_classified() {
+        let loc = |p: &str| location(Path::new(p));
+        assert_eq!(loc(r"C:\docs\a.md"), Location::Local);
+        assert_eq!(loc(r"\\?\C:\docs\a.md"), Location::Local);
+        assert_eq!(loc(r"\\Server\share\a.png"), Location::Network("server".into()));
+        assert_eq!(loc("//server/share/a.png"), Location::Network("server".into()));
+        assert_eq!(loc(r"\\?\UNC\server\share\a.png"), Location::Network("server".into()));
+        assert_eq!(loc(r"\\evil@80\share"), Location::Network("evil@80".into()));
+        for device in [r"\\.\pipe\x", r"\\?\GLOBALROOT\Device\Mup\evil\share", r"\\\evil\share", r"\\", r"\\?\UNC\"] {
+            assert_eq!(loc(device), Location::Device, "{device}");
+        }
+        // What the document origin turns such URLs into.
+        assert_eq!(location(&url_path_to_fs("/unc/evil/share/a.png").unwrap()), Location::Network("evil".into()));
+        assert_eq!(location(&url_path_to_fs("/unc/%3F/UNC/evil/share/a.png").unwrap()), Location::Network("evil".into()));
+        assert_eq!(location(&url_path_to_fs("/unc//evil/share/a.png").unwrap()), Location::Device);
     }
 
     #[test]

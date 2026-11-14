@@ -73,6 +73,7 @@
   "banner.changed": "File changed on disk",
   "banner.changedText": "Another program modified this file. Reload it and lose your edits?",
   "banner.linkMissing": "Link target not found",
+  "banner.linkNetwork": "Link to a network location",
   "banner.reloadFailed": "Cannot reload",
   "banner.pdfNeedsSave": "PDF export needs the document saved so its images can be found.",
   "banner.pdfExporting": "Exporting PDF...",

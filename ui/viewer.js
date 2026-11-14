@@ -21,6 +21,22 @@
     let headings = [];
     let syncedLine = null;
 
+    // Documents contain whatever their author typed: neither of these may throw on it.
+    const toUrl = (value) => {
+        try {
+            return new URL(value, location.href);
+        } catch {
+            return null; // e.g. "http://["
+        }
+    };
+    const decoded = (text) => {
+        try {
+            return decodeURIComponent(text);
+        } catch {
+            return text; // e.g. "100%"
+        }
+    };
+
     hljs.configure({ ignoreUnescapedHTML: true });
 
     // 0-based source line of an element rendered with data-sourcepos="line:col-line:col".
@@ -78,6 +94,8 @@
 
     // ---------- theme / zoom / toc ----------
     function applyTheme(next) {
+        // Every settings change sends the theme; only a new one is worth redrawing the diagrams for.
+        if (next === theme && document.documentElement.dataset.theme === next) return Promise.resolve();
         theme = next;
         document.documentElement.dataset.theme = next;
         const dark = next === 'dark';
@@ -338,7 +356,7 @@
         const img = e.target;
         if (!(img instanceof HTMLImageElement)) return;
         img.classList.add('broken');
-        img.title = t('imageNotFound', { src: decodeURIComponent(img.src) });
+        img.title = t('imageNotFound', { src: decoded(img.src) });
         if (!img.alt) img.alt = img.getAttribute('src') ?? 'image';
     }, true);
 
@@ -348,8 +366,8 @@
         document.querySelectorAll('img[src], video[src], source[src], video[poster]').forEach((el) => {
             for (const attr of ['src', 'poster']) {
                 const value = el.getAttribute(attr);
-                if (!value) continue;
-                const url = new URL(value, location.href);
+                const url = value && toUrl(value);
+                if (!url) continue;
                 if (url.origin === location.origin && !url.pathname.startsWith('/__app/')) {
                     url.search = '';
                     urls.add(url.href);
@@ -364,8 +382,8 @@
         document.querySelectorAll('img, video, source').forEach((el) => {
             const src = el.getAttribute('src');
             if (!src || src.startsWith('data:') || src.startsWith(APP)) return;
-            const url = new URL(src, location.href);
-            if (url.origin !== location.origin) return;
+            const url = toUrl(src);
+            if (!url || url.origin !== location.origin) return;
             url.searchParams.set('mv', stamp);
             el.classList.remove('broken');
             el.src = url.href;
@@ -373,21 +391,25 @@
     }
 
     // ---------- links: the app decides (browser, other document, Explorer) ----------
+    // Every kind of link goes to the app, never to the frame itself: HTML and SVG <a> (SVG also
+    // writes its target as xlink:href) and the <area>s of an image map.
+    const XLINK = 'http://www.w3.org/1999/xlink';
     function onLinkClick(e) {
         if (e.button !== 0 && e.button !== 1) return;
-        const a = e.target.closest?.('a[href]');
+        const a = e.target.closest?.('a, area');
+        const href = a ? (a.getAttribute('href') ?? a.getAttributeNS(XLINK, 'href')) : null;
         const img = e.target instanceof HTMLImageElement ? e.target : null;
-        if (!a) {
+        if (href === null) {
             if (img && e.button === 0 && !img.classList.contains('broken')) {
                 lightbox.querySelector('img').src = img.currentSrc || img.src;
                 lightbox.hidden = false;
             }
             return;
         }
-        const href = a.getAttribute('href');
         if (href.startsWith('#')) return; // same-page anchor
         e.preventDefault();
-        post({ type: 'link', url: a.href, newWindow: e.ctrlKey || e.shiftKey || e.button === 1 });
+        const url = toUrl(href);
+        if (url) post({ type: 'link', url: url.href, newWindow: e.ctrlKey || e.shiftKey || e.button === 1 });
     }
     article.addEventListener('click', onLinkClick);
     article.addEventListener('auxclick', onLinkClick);
@@ -663,9 +685,18 @@
     applyStrings(strings);
     setToc(config.toc);
     applyZoom(config.zoom);
-    enhance().then(() => { document.body.dataset.ready = '1'; });
+    // Marked ready whatever happens: PDF export waits for it, and a document that trips something up
+    // should still be exported as far as it rendered.
+    let rendered;
+    try {
+        rendered = enhance();
+    } catch (e) {
+        console.error(e);
+        rendered = Promise.resolve();
+    }
+    rendered.catch((e) => console.error(e)).finally(() => { document.body.dataset.ready = '1'; });
     if (location.hash) {
-        const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+        const target = document.getElementById(decoded(location.hash.slice(1)));
         if (target) target.scrollIntoView({ block: 'start' });
     }
     post({ type: 'ready' });

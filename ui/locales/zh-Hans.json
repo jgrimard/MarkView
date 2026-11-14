@@ -73,6 +73,7 @@
   "banner.changed": "磁盘上的文件已更改",
   "banner.changedText": "其他程序修改了此文件。是否重新加载并放弃你的编辑？",
   "banner.linkMissing": "找不到链接目标",
+  "banner.linkNetwork": "指向网络位置的链接",
   "banner.reloadFailed": "无法重新加载",
   "banner.pdfNeedsSave": "导出 PDF 需要先保存文档，以便找到其中的图片。",
   "banner.pdfExporting": "正在导出 PDF...",

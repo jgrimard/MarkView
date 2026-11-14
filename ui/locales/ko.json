@@ -73,6 +73,7 @@
   "banner.changed": "디스크의 파일이 변경되었습니다",
   "banner.changedText": "다른 프로그램이 이 파일을 수정했습니다. 다시 로드하고 편집 내용을 버리시겠습니까?",
   "banner.linkMissing": "링크 대상을 찾을 수 없습니다",
+  "banner.linkNetwork": "네트워크 위치로 연결되는 링크",
   "banner.reloadFailed": "다시 로드할 수 없습니다",
   "banner.pdfNeedsSave": "PDF로 내보내려면 이미지를 찾을 수 있도록 문서를 저장해야 합니다.",
   "banner.pdfExporting": "PDF를 내보내는 중...",

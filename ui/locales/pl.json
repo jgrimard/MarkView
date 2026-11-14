@@ -73,6 +73,7 @@
   "banner.changed": "Plik zmieniony na dysku",
   "banner.changedText": "Inny program zmodyfikował ten plik. Załadować go ponownie i utracić Twoje zmiany?",
   "banner.linkMissing": "Nie znaleziono celu linku",
+  "banner.linkNetwork": "Link do lokalizacji sieciowej",
   "banner.reloadFailed": "Nie można załadować ponownie",
   "banner.pdfNeedsSave": "Eksport do PDF wymaga zapisanego dokumentu, aby można było znaleźć jego obrazy.",
   "banner.pdfExporting": "Eksportowanie do PDF...",

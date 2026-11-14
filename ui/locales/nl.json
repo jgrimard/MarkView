@@ -73,6 +73,7 @@
   "banner.changed": "Bestand gewijzigd op schijf",
   "banner.changedText": "Een ander programma heeft dit bestand gewijzigd. Opnieuw laden en uw bewerkingen kwijtraken?",
   "banner.linkMissing": "Doel van koppeling niet gevonden",
+  "banner.linkNetwork": "Koppeling naar een netwerklocatie",
   "banner.reloadFailed": "Kan niet opnieuw laden",
   "banner.pdfNeedsSave": "Voor export naar pdf moet het document zijn opgeslagen, zodat de afbeeldingen ervan gevonden kunnen worden.",
   "banner.pdfExporting": "Pdf exporteren...",

@@ -20,7 +20,8 @@ regex = "1"
 percent-encoding = "2"
 notify = { version = "8", default-features = false }
 rfd = { version = "0.17", default-features = false }
-open = "5"
+# ShellExecute directly: the default launcher starts powershell.exe for every link.
+open = { version = "5", features = ["shellexecute-on-windows"] }
 window-vibrancy = "0.8"
 base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }

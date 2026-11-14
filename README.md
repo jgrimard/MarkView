@@ -41,9 +41,12 @@ relative paths just work. It also handles the cases GitHub doesn't:
 | Parent folder | `![](../assets/b.svg)` | ✅ |
 | Raw HTML | `<img src="shot.jpg" width="300">` | ✅ |
 | Absolute Windows path, even with spaces | `![](C:\My Pictures\c.png)` | ✅ |
-| UNC / network share | `![](\\server\share\d.png)` | ✅ |
+| UNC / network share | `![](\\server\share\d.png)` | ✅ * |
 | `file:///` URL | `![](file:///C:/pics/e.png)` | ✅ |
 | Remote image | `![](https://example.com/f.png)` | ✅ |
+
+\* From servers you have opened a document from. A document can't make MarkView contact any other
+server, because Windows would sign in there with your account; a link to one asks before it is opened.
 
 The whole app is a **single ~7 MB executable**. There's no installer and no runtime to download.
 
@@ -165,8 +168,9 @@ flowchart LR
 - Markdown is rendered by [comrak](https://github.com/kivikakk/comrak) (GitHub-flavored Markdown) with source
   positions, which drive editor/preview scroll sync and task-list toggling.
 - Preview pages run under a strict Content Security Policy. Only MarkView's own scripts can run, so raw HTML
-  in a document can't execute code. MarkView sends no telemetry. The only network requests come from
-  remote images or links in your documents.
+  in a document can't execute code, and the files a document refers to are served as inert content: an HTML
+  or SVG file next to a document never runs as a page. MarkView sends no telemetry. The only network
+  requests come from remote images or links in your documents.
 
 ## Reporting a problem
 

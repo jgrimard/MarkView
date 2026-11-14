@@ -72,10 +72,15 @@
             this.saved = '';
             this.encoding = 'UTF-8';
             this.bom = false;
+            this.crlf = false; // the file's line endings; the editor works with \n
+            this.missing = false; // the file was deleted or moved while open
+            this.stale = false; // the text changed while the preview could not be told
+            this.diskNotice = false; // the banner shown is about the file on disk
             this.mode = 'view';
             this.back = [];
             this.forward = [];
             this.ready = false;
+            this.navigated = false; // the preview frame has loaded a page before
             this.editor = null;
             this.syncLine = null;
             this.renderSoon = debounce(() => this.pushRender(), 150);
@@ -85,7 +90,16 @@
             this.banner = el('div', { class: 'banner-host' });
             this.editorPane = el('div', { class: 'editor-pane' });
             this.splitter = el('div', { class: 'splitter' });
-            this.iframe = el('iframe', { class: 'preview', allow: 'clipboard-write', title: t('doc.preview') });
+            // Sandboxed so that nothing in the preview - a web page a document embeds, say - can replace
+            // the window's content or open windows of its own. Scripts, the page's own origin (for its
+            // files and messages) and the print dialog are what the preview needs; forms are for
+            // embedded pages (the preview's own policy allows it none).
+            this.iframe = el('iframe', {
+                class: 'preview',
+                sandbox: 'allow-scripts allow-same-origin allow-modals allow-forms',
+                allow: 'clipboard-write',
+                title: t('doc.preview'),
+            });
             this.panes = el('div', { class: 'panes' }, this.editorPane, this.splitter, this.iframe);
             this.root = el('section', { class: 'doc' }, this.banner, this.panes);
             this.initSplitter();
@@ -96,14 +110,32 @@
             if (this.path) return fileName(this.path);
             return this.example ? t('doc.examples') : t('doc.untitled', { n: this.untitledId });
         }
-        get dirty() { return this.text !== this.saved; }
+        get dirty() { return this.missing || this.text !== this.saved; }
+
+        // The editor holds the text with \n line ends (and compares with that before replacing it).
+        syncEditor() {
+            this.editor?.setText(this.text.replace(/\r\n?/g, '\n'));
+        }
+
+        // Takes over what read_file returned as the document's saved state.
+        setContent(file) {
+            this.text = this.saved = file.text;
+            this.encoding = file.encoding;
+            this.bom = file.bom;
+            this.crlf = file.text.includes('\r\n');
+            this.missing = false;
+        }
 
         post(message) {
             if (this.ready) this.iframe.contentWindow?.postMessage(message, DOC_ORIGIN);
         }
 
         async pushRender() {
-            if (!this.ready) return;
+            if (!this.ready) {
+                this.stale = true; // sent when the page reports ready
+                return;
+            }
+            this.stale = false;
             const html = await invoke('render', { text: this.text });
             this.post({ type: 'update', html });
         }
@@ -111,26 +143,30 @@
         async navigate(fragment) {
             this.ready = false;
             const url = await invoke('doc_url', { path: this.path, untitled: this.untitledId, examples: this.example });
-            this.iframe.src = `${url}?v=${++navCounter}${fragment ? '#' + encodeURIComponent(fragment) : ''}`;
+            const target = `${url}?v=${++navCounter}${fragment ? '#' + encodeURIComponent(fragment) : ''}`;
+            // Replacing the page keeps the frame's history empty. With an entry per document, "Back" in
+            // the preview's context menu would bring back an earlier document under this one's name.
+            if (this.navigated) this.iframe.contentWindow.location.replace(target);
+            else this.iframe.src = target;
+            this.navigated = true;
         }
 
+        // Makes `path` this document. Returns the error text when the file can't be read; the
+        // document is unchanged then.
         async load(path, fragment) {
             let file;
             try {
-                file = await invoke('read_file', { path });
+                file = await invoke('read_file', { path, encoding: null });
             } catch (e) {
-                showBanner(this, 'error', t('banner.openFailed'), `${path}\n${e}`);
-                return false;
+                return String(e);
             }
             this.path = path;
-            this.text = this.saved = file.text;
-            this.encoding = file.encoding;
-            this.bom = file.bom;
+            this.setContent(file);
             hideBanner(this);
             invoke('add_recent', { path });
             await this.navigate(fragment);
-            this.editor?.setText(this.text);
-            return true;
+            this.syncEditor();
+            return null;
         }
 
         setMode(mode) {
@@ -160,7 +196,7 @@
                 onChange: (text) => {
                     const wasDirty = this.dirty;
                     // CodeMirror joins lines with \n; keep the file's own line endings.
-                    this.text = this.saved.includes('\r\n') ? text.replace(/\r?\n/g, '\r\n') : text;
+                    this.text = this.crlf ? text.replace(/\r?\n/g, '\r\n') : text;
                     this.renderSoon();
                     if (wasDirty !== this.dirty) updateChrome();
                 },
@@ -218,19 +254,32 @@
             return;
         }
         // Reuse an untouched empty document instead of adding a tab next to it.
-        const blank = docs.length === 1 && !docs[0].path && !docs[0].text ? docs[0] : null;
+        const blank = docs.length === 1 && !docs[0].path && !docs[0].text && !docs[0].example ? docs[0] : null;
         if (blank) {
-            await blank.load(path, fragment);
-            blank.setMode('view');
+            const error = await blank.load(path, fragment);
+            if (error) showOpenError(path, error);
+            else blank.setMode('view');
             reportDocs();
             updateChrome();
             return;
         }
-        await addDoc(async (doc) => {
+        let error = null;
+        const doc = await addDoc(async (doc) => {
             doc.setMode('view');
-            if (!(await doc.load(path, fragment))) {
-                closeDoc(doc, true);
-            }
+            error = await doc.load(path, fragment);
+        });
+        if (error) {
+            await closeDoc(doc, true);
+            showOpenError(path, error);
+        }
+    }
+
+    // In a dialog: the document the file was meant for may not exist (any more) to show a banner in.
+    function showOpenError(path, error) {
+        showDialog({
+            title: t('banner.openFailed'),
+            content: el('div', {}, el('div', { class: 'path-box' }, path), el('p', {}, error)),
+            close: t('common.ok'),
         });
     }
 
@@ -248,6 +297,7 @@
         await addDoc(async (doc) => {
             doc.example = true;
             doc.text = doc.saved = await invoke('example_document');
+            doc.crlf = doc.text.includes('\r\n');
             await doc.navigate();
             doc.setMode('split');
         });
@@ -310,9 +360,15 @@
             activate(other);
             return;
         }
-        if (doc.path) doc.back.push(doc.path);
+        const from = doc.path;
+        const error = await doc.load(path, fragment);
+        if (error) {
+            showBanner(doc, 'warning', t('banner.openFailed'), `${path} - ${error}`);
+            return;
+        }
+        // Only now: a link that could not be followed leaves the history alone.
+        if (from) doc.back.push(from);
         doc.forward = [];
-        await doc.load(path, fragment);
         reportDocs();
         updateChrome();
     }
@@ -321,8 +377,15 @@
         const from = direction < 0 ? doc.back : doc.forward;
         const to = direction < 0 ? doc.forward : doc.back;
         if (!from.length || !(await confirmDiscard(doc, 'leaving'))) return;
-        if (doc.path) to.push(doc.path);
-        await doc.load(from.pop());
+        const current = doc.path;
+        const target = from[from.length - 1];
+        const error = await doc.load(target);
+        if (error) {
+            showBanner(doc, 'warning', t('banner.openFailed'), `${target} - ${error}`);
+            return;
+        }
+        from.pop();
+        if (current) to.push(current);
         reportDocs();
         updateChrome();
     }
@@ -331,16 +394,20 @@
 
     async function save(doc) {
         if (!doc.path) return saveAs(doc);
+        // What is written is what counts as saved: typing goes on while the file is being written.
+        const text = doc.text;
         try {
-            await invoke('write_file', { path: doc.path, text: doc.text, encoding: doc.encoding, bom: doc.bom });
-            doc.saved = doc.text;
-            updateChrome();
-            return true;
+            await invoke('write_file', { path: doc.path, text, encoding: doc.encoding, bom: doc.bom });
         } catch (e) {
             if (e === 'unmappable') return saveAsUtf8(doc);
             showBanner(doc, 'error', t('banner.saveFailed'), String(e));
             return false;
         }
+        doc.saved = text;
+        doc.missing = false;
+        if (doc.diskNotice) hideBanner(doc); // "deleted" / "changed on disk" are settled by saving
+        updateChrome();
+        return true;
     }
 
     // The file's legacy encoding (Shift_JIS, windows-1252, ...) can't store some of the text.
@@ -399,33 +466,63 @@
 
     // ================================================================ disk changes
 
+    function showDiskNotice(doc, ...banner) {
+        showBanner(doc, 'warning', ...banner);
+        doc.diskNotice = true;
+    }
+
+    // Replaces the document with what is on disk.
+    function applyDisk(doc, file) {
+        doc.setContent(file);
+        if (doc.diskNotice) hideBanner(doc);
+        doc.syncEditor();
+        doc.pushRender();
+        updateChrome();
+    }
+
     async function onDiskChanged(doc) {
         if (!doc.path || !docs.includes(doc)) return;
+        const path = doc.path;
         let file;
         try {
-            file = await invoke('read_file', { path: doc.path });
+            file = await invoke('read_file', { path, encoding: doc.encoding });
         } catch {
-            if (!(await invoke('path_exists', { path: doc.path }))) {
-                showBanner(doc, 'warning', t('banner.deleted'), t('banner.deletedText'));
-                doc.saved = '\u0000';
+            if (!(await invoke('path_exists', { path })) && doc.path === path && !doc.missing) {
+                doc.missing = true; // counts as unsaved: closing asks, saving recreates the file
+                showDiskNotice(doc, t('banner.deleted'), t('banner.deletedText'));
                 updateChrome();
             }
             return; // otherwise still being written; another change event follows
         }
-        if (file.text === doc.saved) return; // our own save, or a touch without content change
-        const reload = () => {
-            doc.text = doc.saved = file.text;
-            doc.encoding = file.encoding;
-            doc.bom = file.bom;
-            doc.editor?.setText(doc.text);
-            doc.pushRender();
-            updateChrome();
-        };
-        if (!doc.dirty) {
-            reload();
-        } else {
-            showBanner(doc, 'warning', t('banner.changed'), t('banner.changedText'), t('cmd.reload'), reload);
+        if (doc.path !== path) return; // the document moved on to another file meanwhile
+        if (file.text === doc.saved || file.text === doc.text) {
+            // Our own save, a touch without a change, the file coming back after a delete, or a change
+            // to exactly what the editor holds: nothing to choose between.
+            const settled = doc.missing || doc.saved !== file.text;
+            doc.missing = false;
+            if (file.text === doc.text) {
+                doc.saved = file.text;
+                doc.encoding = file.encoding;
+                doc.bom = file.bom;
+            }
+            if (settled) {
+                if (doc.diskNotice) hideBanner(doc);
+                updateChrome();
+            }
+            return;
         }
+        if (!doc.dirty) {
+            applyDisk(doc, file);
+            return;
+        }
+        // Read again when Reload is clicked: by then the file may have changed once more.
+        showDiskNotice(doc, t('banner.changed'), t('banner.changedText'), t('cmd.reload'), async () => {
+            try {
+                applyDisk(doc, await invoke('read_file', { path: doc.path, encoding: doc.encoding }));
+            } catch (e) {
+                showBanner(doc, 'error', t('banner.reloadFailed'), String(e));
+            }
+        });
     }
 
     // ================================================================ preview messages
@@ -438,9 +535,11 @@
         switch (m.type) {
             case 'ready':
                 doc.ready = true;
+                // The page was built from the settings and the file as they were when it was requested.
                 doc.post({ type: 'theme', theme: effectiveTheme() });
-                // The page was rendered from disk; catch up with unsaved edits.
-                if (doc.dirty || !doc.path) doc.pushRender();
+                doc.post({ type: 'toc', visible: settings.tocVisible });
+                doc.post({ type: 'zoom', zoom: settings.zoom });
+                if (doc.dirty || !doc.path || doc.stale) doc.pushRender();
                 if (doc.mode === 'split' && doc.editor) doc.post({ type: 'scrollToLine', line: doc.editor.topLine() });
                 break;
             case 'command':
@@ -450,10 +549,10 @@
                 await followLink(doc, m.url, m.newWindow);
                 break;
             case 'toggleTask':
-                toggleTask(doc, m.line, m.checked);
+                if (Number.isInteger(m.line)) toggleTask(doc, m.line, !!m.checked);
                 break;
             case 'reveal':
-                if (doc.mode !== 'view') doc.editor?.revealLine(m.line);
+                if (Number.isInteger(m.line) && m.line >= 0 && doc.mode !== 'view') doc.editor?.revealLine(m.line);
                 break;
             case 'localFiles':
                 if (doc.path) invoke('watch_dependencies', { doc: doc.path, urls: m.urls });
@@ -461,10 +560,16 @@
         }
     });
 
-    async function followLink(doc, url, newWindow) {
-        const result = await invoke('open_link', { url });
+    async function followLink(doc, url, newWindow, allowNetwork = false) {
+        if (typeof url !== 'string') return;
+        const result = await invoke('open_link', { url, allowNetwork });
         if (result.kind === 'missing') {
             showBanner(doc, 'warning', t('banner.linkMissing'), result.path);
+        } else if (result.kind === 'network') {
+            // A server nothing was opened from yet. Contacting it signs in with the Windows account,
+            // so that is the user's call, not the document's.
+            showBanner(doc, 'warning', t('banner.linkNetwork'), result.path, t('common.open'),
+                () => followLink(doc, url, newWindow, true));
         } else if (result.kind === 'markdown') {
             if (newWindow) await invoke('open_paths', { paths: [result.path], fragment: result.fragment });
             else await navigateTo(doc, result.path, result.fragment);
@@ -487,6 +592,7 @@
     // ================================================================ commands
 
     async function runCommand(name) {
+        if (dialogOpen) return; // a dialog is modal: shortcuts don't reach the window behind it
         const doc = active;
         try {
             switch (name) {
@@ -559,11 +665,9 @@
     async function reload(doc) {
         if (doc.path && !doc.dirty) {
             try {
-                const file = await invoke('read_file', { path: doc.path });
-                doc.text = doc.saved = file.text;
-                doc.encoding = file.encoding;
-                doc.bom = file.bom;
-                doc.editor?.setText(doc.text);
+                doc.setContent(await invoke('read_file', { path: doc.path, encoding: null }));
+                hideBanner(doc);
+                doc.syncEditor();
             } catch (e) {
                 showBanner(doc, 'error', t('banner.reloadFailed'), String(e));
             }
@@ -661,6 +765,7 @@
             actions.append(el('button', { class: 'btn', onclick: () => { hideBanner(doc); action(); } }, actionText));
         }
         actions.append(el('button', { class: 'icon-btn', title: t('common.close'), onclick: () => hideBanner(doc) }, glyph('')));
+        doc.diskNotice = false;
         doc.banner.replaceChildren(el('div', { class: `infobar ${severity}` },
             el('span', { class: 'icon glyph' }, icons[severity] ?? icons.info),
             el('div', { class: 'text' }, el('strong', {}, title), message ?? ''),
@@ -668,6 +773,7 @@
     }
 
     function hideBanner(doc) {
+        doc.diskNotice = false;
         doc.banner.replaceChildren();
     }
 
@@ -891,7 +997,7 @@
             title: t('about.title'),
             content: el('div', {},
                 el('p', {}, t('about.version', { version: info.version })),
-                el('button', { class: 'link-btn', onclick: () => invoke('open_link', { url: info.repository }) },
+                el('button', { class: 'link-btn', onclick: () => invoke('open_link', { url: info.repository, allowNetwork: false }) },
                     info.repository.replace(/^https:\/\//, '')),
                 el('p', {}, t('about.builtWith')),
                 el('p', {}, t('about.settings', { path: info.dataDir }))),
@@ -912,16 +1018,37 @@
         layer.querySelector('.dialog-title').textContent = title;
         layer.querySelector('.dialog-content').replaceChildren(content);
         const footer = layer.querySelector('.dialog-footer');
+        const focusBefore = document.activeElement;
         return new Promise((resolve) => {
             const done = (result) => {
                 layer.hidden = true;
                 dialogOpen = false;
                 document.removeEventListener('keydown', onKey, true);
+                if (focusBefore?.isConnected) focusBefore.focus?.();
                 resolve(result);
             };
             const onKey = (e) => {
-                if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(escape); }
-                if (e.key === 'Enter' && primary) { e.preventDefault(); e.stopPropagation(); done('primary'); }
+                const focused = document.activeElement;
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    done(escape);
+                } else if (e.key === 'Enter') {
+                    // Enter presses the focused button ("Don't save" stays "Don't save"); only when no
+                    // button has the focus does it mean the primary action.
+                    if (focused?.tagName === 'BUTTON' && layer.contains(focused)) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (primary) done('primary');
+                } else if (e.key === 'Tab') {
+                    // Tab stays in the dialog instead of wandering into the window behind it.
+                    const buttons = [...layer.querySelectorAll('button:not(:disabled)')];
+                    if (!buttons.length) return;
+                    e.preventDefault();
+                    const i = buttons.indexOf(focused);
+                    const next = i < 0 ? 0 : (i + (e.shiftKey ? -1 : 1) + buttons.length) % buttons.length;
+                    buttons[next].focus();
+                }
             };
             const buttons = [];
             if (primary) buttons.push(el('button', { class: 'btn accent', onclick: () => done('primary') }, primary));

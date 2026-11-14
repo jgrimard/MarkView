@@ -89,12 +89,24 @@ pub fn render(markdown: &str) -> String {
     let root = parse_document(&arena, &source, &options);
 
     // Absolute Windows paths and file:// URLs cannot load in a web page; point them at the local origin.
+    // Done on the parsed document, so only real links and raw HTML change: a path that is merely
+    // written out in the text or shown in a code block stays as the author typed it.
     for node in root.descendants() {
         let mut data = node.data.borrow_mut();
         match &mut data.value {
             NodeValue::Link(link) | NodeValue::Image(link) => {
                 if let Some(url) = urlmap::rewrite_absolute(&link.url) {
                     link.url = url;
+                }
+            }
+            NodeValue::HtmlBlock(block) => {
+                if let Some(html) = rewrite_raw_html_paths(&block.literal) {
+                    block.literal = html;
+                }
+            }
+            NodeValue::HtmlInline(html) => {
+                if let Some(rewritten) = rewrite_raw_html_paths(html) {
+                    *html = rewritten;
                 }
             }
             _ => {}
@@ -105,14 +117,16 @@ pub fn render(markdown: &str) -> String {
     if format_html(root, &options, &mut html).is_err() {
         return String::from("<p>Render error</p>");
     }
-    rewrite_raw_html_paths(&html)
+    html
 }
 
-fn rewrite_raw_html_paths(html: &str) -> String {
-    if !(html.contains("file:") || html.contains(":\\") || html.contains("\\\\") || html.contains("%5C")) {
-        return html.to_string();
+/// The raw HTML with its absolute local paths rewritten, or None when it has none.
+fn rewrite_raw_html_paths(html: &str) -> Option<String> {
+    let lower = html.to_ascii_lowercase();
+    if !(lower.contains("file:") || html.contains(":\\") || html.contains(":/") || html.contains("\\\\") || lower.contains("%5c")) {
+        return None;
     }
-    URL_ATTR
+    let rewritten = URL_ATTR
         .replace_all(html, |c: &Captures| {
             let attr = &c[1];
             let (value, quote) = match (c.get(2), c.get(3)) {
@@ -130,8 +144,11 @@ fn rewrite_raw_html_paths(html: &str) -> String {
                 Some(v) => format!("{attr}={quote}{}{quote}", v.replace('&', "&amp;")),
                 None => c[0].to_string(),
             }
-        })
-        .into_owned()
+        });
+    match rewritten {
+        std::borrow::Cow::Owned(changed) if changed != html => Some(changed),
+        _ => None,
+    }
 }
 
 fn rewrite_srcset(srcset: &str) -> Option<String> {
@@ -158,12 +175,36 @@ fn rewrite_srcset(srcset: &str) -> Option<String> {
 
 /// Plain text of the first heading, used to suggest a file name for untitled documents.
 pub fn first_heading(markdown: &str) -> Option<String> {
-    markdown
-        .lines()
-        .map(str::trim_start)
-        .find(|l| l.starts_with('#'))
-        .map(|l| l.trim_start_matches('#').trim().to_string())
-        .filter(|s| !s.is_empty())
+    let mut fence: Option<&str> = None;
+    for line in markdown.lines() {
+        let line = line.trim_start();
+        // A `# comment` in a code block is not a heading.
+        if let Some(marker) = ["```", "~~~"].into_iter().find(|m| line.starts_with(m)) {
+            match fence {
+                None => fence = Some(marker),
+                Some(open) if open == marker => fence = None,
+                _ => {}
+            }
+            continue;
+        }
+        if fence.is_some() {
+            continue;
+        }
+        // One to six #, then a space: `#hashtag` and `#1` are ordinary text.
+        let hashes = line.bytes().take_while(|b| *b == b'#').count();
+        let rest = &line[hashes..];
+        if !(1..=6).contains(&hashes) || !(rest.is_empty() || rest.starts_with([' ', '\t'])) {
+            continue;
+        }
+        // `# Title ##` closes the heading; in `# C#` the # belongs to the title.
+        let title = rest.trim();
+        let unclosed = title.trim_end_matches('#');
+        let title = if unclosed.is_empty() || unclosed.ends_with([' ', '\t']) { unclosed.trim_end() } else { title };
+        if !title.is_empty() {
+            return Some(title.to_string());
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -185,6 +226,26 @@ mod tests {
         let html = render("![a](img/a.png)\n\n```\n![x](a b.png)\n```\n");
         assert!(html.contains(r#"src="img/a.png""#), "{html}");
         assert!(html.contains("![x](a b.png)"), "{html}");
+    }
+
+    #[test]
+    fn rewrites_raw_html_but_not_text_or_code() {
+        let html = render("<video poster='C:\\v\\p.png' src=\"file:///C:/v/a.mp4\"></video>\n\nSee <img src='D:/x/y.png'> here.\n");
+        assert!(html.contains("poster='http://mdfile.localhost/C:/v/p.png'"), "{html}");
+        assert!(html.contains(r#"src="http://mdfile.localhost/C:/v/a.mp4""#), "{html}");
+        assert!(html.contains("src='http://mdfile.localhost/D:/x/y.png'"), "{html}");
+
+        let html = render("Write src='C:\\pics\\a.png' in the tag.\n\n```html\n<img src='C:\\pics\\a.png'>\n```\n\n`href='C:\\a.md'`\n");
+        assert!(!html.contains("mdfile.localhost"), "{html}");
+        assert_eq!(html.matches(r"C:\pics\a.png").count(), 2, "{html}");
+    }
+
+    #[test]
+    fn finds_the_first_heading() {
+        assert_eq!(first_heading("intro\n\n## Second level ##\n# Later").as_deref(), Some("Second level"));
+        assert_eq!(first_heading("```sh\n# not a heading\n```\n# C#").as_deref(), Some("C#"));
+        assert_eq!(first_heading("#hashtag\n#\n####### seven\n#\tTabbed").as_deref(), Some("Tabbed"));
+        assert_eq!(first_heading("plain text\n#nope"), None);
     }
 
     #[test]

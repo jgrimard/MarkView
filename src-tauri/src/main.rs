@@ -17,10 +17,11 @@ mod windows;
 use base64::Engine;
 use serde::Serialize;
 use settings::{Placement, Settings, SettingsStore};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
+use urlmap::Location;
 use watcher::DocWatcher;
 use windows::{OpenRequest, WindowRegistry};
 
@@ -28,11 +29,61 @@ use windows::{OpenRequest, WindowRegistry};
 #[derive(Default)]
 pub struct PendingPrints(pub Mutex<HashMap<String, String>>);
 
-/// Linked files with these extensions are revealed in Explorer instead of being run.
+/// Servers the user has opened documents from. A document may only load files and follow links on
+/// these: touching any other `\\server\share` makes Windows sign in there with the user's credentials,
+/// which is how a hostile document collects password hashes.
+#[derive(Default)]
+pub struct TrustedServers(Mutex<HashSet<String>>);
+
+impl TrustedServers {
+    /// Called for paths the user chose (a document being opened or saved), never for a document's links.
+    pub fn trust(&self, path: &Path) {
+        if let Location::Network(server) = urlmap::location(path) {
+            self.0.lock().unwrap().insert(server);
+        }
+    }
+
+    /// Whether a path that came out of a document may be touched.
+    pub fn allows(&self, path: &Path) -> bool {
+        match urlmap::location(path) {
+            Location::Local => true,
+            Location::Network(server) => self.0.lock().unwrap().contains(&server),
+            Location::Device => false,
+        }
+    }
+}
+
+/// Linked files with these extensions are revealed in Explorer instead of being run. (Windows' own
+/// AssocIsDangerous is no help here: it also reports .txt and .ini once another editor is installed.)
 const UNSAFE_TO_LAUNCH: &[&str] = &[
-    "exe", "com", "bat", "cmd", "ps1", "psm1", "vbs", "vbe", "js", "jse", "wsf", "wsh", "msi", "msp", "scr",
-    "pif", "lnk", "url", "hta", "cpl", "reg", "jar", "appref-ms", "application", "msc",
+    "exe", "com", "bat", "cmd", "ps1", "psm1", "psd1", "ps1xml", "psc1", "vbs", "vbe", "vb", "js", "jse", "ws",
+    "wsf", "wsh", "wsc", "sct", "msi", "msp", "mst", "msu", "scr", "pif", "lnk", "url", "hta", "cpl", "reg", "jar",
+    "jnlp", "appref-ms", "application", "msc", "scf", "chm", "hlp", "inf", "ins", "isp", "gadget", "xll", "wll",
+    "msix", "msixbundle", "appx", "appxbundle", "appinstaller", "diagcab", "diagpkg", "settingcontent-ms",
+    "library-ms", "search-ms", "searchconnector-ms", "website", "rdp", "theme", "themepack", "deskthemepack", "iso",
+    "img", "vhd", "vhdx", "py", "pyw", "pyz", "rb", "pl", "php", "sh",
 ];
+
+/// Whether opening a linked file could run something. Judged by the name Windows will act on: it drops
+/// trailing dots and spaces (`setup.exe.` runs setup.exe), and `notes.txt:x.exe` names a hidden stream.
+fn unsafe_to_launch(path: &Path) -> bool {
+    let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    let name = name.trim_end_matches(['.', ' ']);
+    if name.contains(':') {
+        return true;
+    }
+    match name.rsplit_once('.') {
+        Some((_, ext)) => UNSAFE_TO_LAUNCH.iter().any(|x| x.eq_ignore_ascii_case(ext)),
+        None => false, // no file type: Windows asks what to open it with
+    }
+}
+
+/// Explorer by its full path: a bare `explorer.exe` is looked for next to MarkView.exe first, which
+/// for a downloaded copy is a folder anything can be dropped into.
+fn explorer() -> std::process::Command {
+    let windows = std::env::var_os("SystemRoot").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(r"C:\Windows"));
+    std::process::Command::new(windows.join("explorer.exe"))
+}
 
 const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif", "apng", "jfif"];
 
@@ -51,9 +102,12 @@ struct FileText {
     bom: bool,
 }
 
+/// `encoding`: what the document was read as before, when it is being read again (see textfile::decode_as).
 #[tauri::command]
-fn read_file(path: String) -> Result<FileText, String> {
-    textfile::read(Path::new(&path))
+fn read_file(app: AppHandle, path: String, encoding: Option<String>) -> Result<FileText, String> {
+    let path = Path::new(&path);
+    app.state::<TrustedServers>().trust(path);
+    textfile::read(path, encoding.as_deref())
         .map(|f| FileText { text: f.text, encoding: f.encoding, bom: f.bom })
         .map_err(|e| e.to_string())
 }
@@ -62,7 +116,8 @@ fn read_file(path: String) -> Result<FileText, String> {
 const UNMAPPABLE: &str = "unmappable";
 
 #[tauri::command]
-fn write_file(path: String, text: String, encoding: String, bom: bool) -> Result<(), String> {
+fn write_file(app: AppHandle, path: String, text: String, encoding: String, bom: bool) -> Result<(), String> {
+    app.state::<TrustedServers>().trust(Path::new(&path));
     let bytes = textfile::encode(&text, &encoding, bom).map_err(|_| UNMAPPABLE.to_string())?;
     std::fs::write(&path, bytes).map_err(|e| e.to_string())
 }
@@ -122,8 +177,10 @@ fn add_recent(app: AppHandle, path: String) {
 #[tauri::command]
 async fn watch_dependencies(app: AppHandle, doc: String, urls: Vec<String>) {
     let watcher = app.state::<DocWatcher>();
+    let servers = app.state::<TrustedServers>();
     for url in urls {
-        if let Some((path, _)) = urlmap::url_to_path(&url) {
+        // Watching a folder touches it, so the same rule as for loading the file applies.
+        if let Some((path, _)) = urlmap::url_to_path(&url).filter(|(path, _)| servers.allows(path)) {
             watcher.add_dependency(Path::new(&doc), &path);
         }
     }
@@ -148,7 +205,8 @@ fn save_pasted_image(app: AppHandle, doc_path: String, data: String, ext: String
         .chars()
         .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
         .collect();
-    let ext = ext.trim_start_matches('.');
+    let ext: String = ext.chars().filter(char::is_ascii_alphanumeric).take(8).collect();
+    let ext = if ext.is_empty() { "png" } else { ext.as_str() };
     let stamp = chrono::Local::now().format("%Y%m%d-%H%M%S");
     let mut name = format!("{stem}-{stamp}.{ext}");
     let mut i = 2;
@@ -169,7 +227,10 @@ fn link_for_file(doc_path: Option<String>, file: String) -> String {
         .and_then(|d| Path::new(d).parent())
         .and_then(|dir| relative_path(dir, file_path))
         .unwrap_or_else(|| file.replace('\\', "/"));
+    // Characters that would end the link text, or that a URL reads as an escape or a fragment.
     let label = file_path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+    let label = label.replace('\\', r"\\").replace('[', r"\[").replace(']', r"\]");
+    let target = target.replace('%', "%25").replace('#', "%23");
     let dest = if target.contains([' ', '(', ')']) { format!("<{target}>") } else { target };
     if has_ext(file_path, IMAGE_EXTENSIONS) {
         format!("![{label}]({dest})")
@@ -197,13 +258,19 @@ fn relative_path(from_dir: &Path, to: &Path) -> Option<String> {
 
 #[tauri::command]
 fn suggest_name(app: AppHandle, text: String) -> String {
-    let base = render::first_heading(&text).unwrap_or_else(|| i18n::t(&app, "file.untitled"));
-    let cleaned: String = base
-        .chars()
-        .map(|c| if r#"<>:"/\|?*"#.contains(c) || c.is_control() { '_' } else { c })
-        .take(60)
-        .collect();
-    cleaned.trim().to_string()
+    // Windows drops trailing dots and spaces from a name, so a title must not end in them.
+    let clean = |title: &str| -> String {
+        let name: String = title
+            .chars()
+            .map(|c| if r#"<>:"/\|?*"#.contains(c) || c.is_control() { '_' } else { c })
+            .take(60)
+            .collect();
+        name.trim().trim_end_matches(['.', ' ']).to_string()
+    };
+    render::first_heading(&text)
+        .map(|heading| clean(&heading))
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| clean(&i18n::t(&app, "file.untitled")))
 }
 
 // ---------------------------------------------------------------- links
@@ -211,15 +278,18 @@ fn suggest_name(app: AppHandle, text: String) -> String {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct LinkResult {
-    /// "markdown" (the page should navigate), "handled" (opened elsewhere) or "missing"
+    /// "markdown" (the page should navigate), "handled" (opened elsewhere), "missing", or "network"
+    /// (on a server no document was opened from: the user is asked before it is contacted)
     kind: &'static str,
     path: Option<String>,
     fragment: Option<String>,
 }
 
 /// Routes a clicked link: web links to the browser, Markdown back to the page, other files to the shell.
+///
+/// `allow_network`: the user confirmed a link to a server that is not trusted yet (see TrustedServers).
 #[tauri::command]
-fn open_link(url: String) -> LinkResult {
+fn open_link(app: AppHandle, url: String, allow_network: Option<bool>) -> LinkResult {
     let handled = LinkResult { kind: "handled", path: None, fragment: None };
     let lower = url.to_ascii_lowercase();
     let is_local = lower.starts_with(urlmap::ORIGIN) || lower.starts_with("file:");
@@ -233,14 +303,25 @@ fn open_link(url: String) -> LinkResult {
         return handled;
     };
     let path_str = path.to_string_lossy().to_string();
+    // Decided before the path is touched: even asking whether it exists contacts the server.
+    let servers = app.state::<TrustedServers>();
+    if allow_network == Some(true) {
+        servers.trust(&path);
+    }
+    if !servers.allows(&path) {
+        return match urlmap::location(&path) {
+            Location::Network(_) => LinkResult { kind: "network", path: Some(path_str), fragment: None },
+            _ => handled,
+        };
+    }
     if path.is_dir() {
-        let _ = std::process::Command::new("explorer.exe").arg(&path).spawn();
+        let _ = explorer().arg(&path).spawn();
         handled
     } else if !path.is_file() {
         LinkResult { kind: "missing", path: Some(path_str), fragment: None }
     } else if server::is_markdown(&path) {
         LinkResult { kind: "markdown", path: Some(path_str), fragment }
-    } else if has_ext(&path, UNSAFE_TO_LAUNCH) {
+    } else if unsafe_to_launch(&path) {
         reveal(path_str);
         handled
     } else {
@@ -254,7 +335,10 @@ fn reveal(path: String) {
     use std::os::windows::process::CommandExt;
     // Explorer only understands `/select,"path"`; `.arg()` would quote the whole switch when the path has spaces.
     let path = path.replace('/', "\\");
-    let _ = std::process::Command::new("explorer.exe").raw_arg(format!("/select,\"{path}\"")).spawn();
+    if path.contains('"') {
+        return; // no file is called that, and it would end the quoting
+    }
+    let _ = explorer().raw_arg(format!("/select,\"{path}\"")).spawn();
 }
 
 // ---------------------------------------------------------------- windows
@@ -542,6 +626,7 @@ fn main() {
         .manage(SettingsStore::load())
         .manage(WindowRegistry::default())
         .manage(PendingPrints::default())
+        .manage(TrustedServers::default())
         .register_asynchronous_uri_scheme_protocol("mdfile", |ctx, request, responder| {
             let app = ctx.app_handle().clone();
             std::thread::spawn(move || responder.respond(server::handle(&app, &request)));
@@ -599,4 +684,55 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running MarkView");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dangerous_links_are_not_launched() {
+        let unsafe_name = |name: &str| unsafe_to_launch(&Path::new(r"C:\docs").join(name));
+        for name in [
+            "setup.exe", "SETUP.EXE", "setup.exe.", "setup.exe ", "run.bat. .", "notes.txt:evil.exe", "x.lnk", "s.ps1",
+            "a.scf", "a.settingcontent-ms", "tool.py",
+        ] {
+            assert!(unsafe_name(name), "{name}");
+        }
+        for name in ["report.pdf", "data.xlsx", "photo.jpg", "notes.txt", "LICENSE", "archive.zip", "v1.2 notes.docx"] {
+            assert!(!unsafe_name(name), "{name}");
+        }
+    }
+
+    #[test]
+    fn dropped_files_become_links() {
+        let link = |doc: Option<&str>, file: &str| link_for_file(doc.map(str::to_string), file.to_string());
+        assert_eq!(link(Some(r"C:\docs\a.md"), r"C:\docs\img\photo.png"), "![photo](img/photo.png)");
+        assert_eq!(link(Some(r"C:\docs\a.md"), r"D:\x\y.png"), "![y](D:/x/y.png)");
+        assert_eq!(link(None, r"D:\x\y.txt"), "[y](D:/x/y.txt)");
+
+        // Names with characters Markdown or URLs give a meaning to still lead to the file.
+        let odd = link(Some(r"C:\docs\sub\a.md"), r"C:\docs\My Files\C# [draft] 100%.pdf");
+        assert_eq!(odd, r"[C# \[draft\] 100%](<../My Files/C%23 [draft] 100%25.pdf>)");
+        let html = render::render(&odd);
+        assert!(html.contains(r#"href="../My%20Files/C%23%20%5Bdraft%5D%20100%25.pdf""#), "{html}");
+        assert!(html.contains(">C# [draft] 100%</a>"), "{html}");
+
+        let absolute = render::render(&link(Some(r"C:\docs\a.md"), r"D:\C#\50% off.png"));
+        assert!(absolute.contains(r#"src="http://mdfile.localhost/D:/C%23/50%25%20off.png""#), "{absolute}");
+    }
+
+    #[test]
+    fn documents_only_reach_servers_the_user_opened() {
+        let servers = TrustedServers::default();
+        assert!(servers.allows(Path::new(r"C:\docs\a.png")));
+        assert!(!servers.allows(Path::new(r"\\evil\share\a.png")));
+        assert!(!servers.allows(Path::new(r"\\.\pipe\x")));
+        servers.trust(Path::new(r"C:\docs\a.md"));
+        servers.trust(Path::new(r"\\NAS\docs\readme.md"));
+        assert!(servers.allows(Path::new(r"\\nas\photos\a.png")));
+        assert!(servers.allows(Path::new(r"\\?\UNC\nas\photos\a.png")));
+        assert!(!servers.allows(Path::new(r"\\evil.example\share\a.png")));
+        assert!(!servers.allows(Path::new(r"\\?\GLOBALROOT\Device\Mup\nas\photos\a.png")));
+    }
 }

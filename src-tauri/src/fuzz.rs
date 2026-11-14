@@ -104,13 +104,15 @@ fn fuzz() {
         let encoding = encodings[rng.below(encodings.len())];
         let bom = rng.below(2) == 0;
 
-        let targets: [(&str, &dyn Fn()); 10] = [
+        let targets: [(&str, &dyn Fn()); 12] = [
             ("render", &|| drop(render::render(&doc))),
             ("first_heading", &|| drop(render::first_heading(&doc))),
             ("rewrite_absolute", &|| drop(urlmap::rewrite_absolute(&short))),
             ("url_to_path", &|| drop(urlmap::url_to_path(&short))),
             ("url_path_to_fs", &|| drop(urlmap::url_path_to_fs(&short))),
             ("path_to_url", &|| drop(urlmap::url_to_path(&urlmap::path_to_url(Path::new(&short))))),
+            ("location", &|| drop(urlmap::location(Path::new(&short)))),
+            ("location_of_url", &|| drop(urlmap::url_path_to_fs(&short).map(|p| urlmap::location(&p)))),
             ("decode", &|| drop(textfile::decode(&bytes))),
             ("encode", &|| drop(textfile::encode(&doc, encoding, bom))),
             ("link_for_file", &|| drop(crate::link_for_file(Some(format!(r"C:\docs\{short}\a.md")), format!(r"C:\{doc}")))),
@@ -123,7 +125,7 @@ fn fuzz() {
                 let (place, message) = LAST_PANIC.lock().unwrap().take().unwrap_or_default();
                 let sample = match name {
                     "decode" => format!("{bytes:?}"),
-                    "rewrite_absolute" | "url_to_path" | "url_path_to_fs" | "path_to_url" => short.clone(),
+                    "rewrite_absolute" | "url_to_path" | "url_path_to_fs" | "path_to_url" | "location" | "location_of_url" => short.clone(),
                     _ => doc.clone(),
                 };
                 found.entry(place).or_insert((0, name, message, sample)).0 += 1;

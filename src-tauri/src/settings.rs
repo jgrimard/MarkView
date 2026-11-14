@@ -50,6 +50,15 @@ impl Default for Settings {
     }
 }
 
+impl Settings {
+    /// A damaged or hand-edited file must not hide the document (zoom 0) or one of the panes (split 0 or 1).
+    fn sanitize(&mut self) {
+        self.zoom = if self.zoom.is_finite() { self.zoom.clamp(0.5, 3.0) } else { 1.0 };
+        self.split_ratio = if self.split_ratio.is_finite() { self.split_ratio.clamp(0.15, 0.85) } else { 0.5 };
+        self.recent.truncate(MAX_RECENT);
+    }
+}
+
 pub struct SettingsStore(pub Mutex<Settings>);
 
 pub fn data_dir() -> PathBuf {
@@ -77,10 +86,11 @@ fn settings_path() -> PathBuf {
 
 impl SettingsStore {
     pub fn load() -> Self {
-        let settings = std::fs::read_to_string(settings_path())
+        let mut settings: Settings = std::fs::read_to_string(settings_path())
             .ok()
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_default();
+        settings.sanitize();
         Self(Mutex::new(settings))
     }
 
@@ -91,6 +101,7 @@ impl SettingsStore {
     pub fn update(&self, f: impl FnOnce(&mut Settings)) -> Settings {
         let mut s = self.0.lock().unwrap();
         f(&mut s);
+        s.sanitize();
         if let Ok(json) = serde_json::to_string_pretty(&*s) {
             let _ = std::fs::write(settings_path(), json);
         }

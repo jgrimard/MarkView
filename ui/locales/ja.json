@@ -73,6 +73,7 @@
   "banner.changed": "ディスク上のファイルが変更されました",
   "banner.changedText": "別のプログラムがこのファイルを変更しました。再読み込みして編集内容を破棄しますか?",
   "banner.linkMissing": "リンク先が見つかりません",
+  "banner.linkNetwork": "ネットワーク上の場所へのリンク",
   "banner.reloadFailed": "再読み込みできません",
   "banner.pdfNeedsSave": "PDF エクスポートでは画像を見つけられるように、ドキュメントが保存されている必要があります。",
   "banner.pdfExporting": "PDF をエクスポートしています...",

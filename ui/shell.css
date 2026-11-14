@@ -198,7 +198,8 @@ button {
 .tools {
     display: flex;
     align-items: center;
-    flex: 1;
+    /* As wide as its buttons: the path in #status gets what is left, never the buttons' room. */
+    flex: 0 1 auto;
     min-width: 0;
     overflow: hidden;
 }
@@ -245,17 +246,18 @@ button {
 }
 
 #status {
-    flex: 0 1 auto;
+    flex: 1 1 0;              /* the space the toolbar buttons leave, at the right edge */
     min-width: 0;
     max-width: 560px;
-    margin: 0 16px 0 12px;
+    margin: 0 16px 0 auto;
+    padding-left: 12px;
     overflow: hidden;
     color: var(--text-secondary);
     font-size: 12px;
     white-space: nowrap;
     text-overflow: ellipsis;
     direction: rtl;           /* ellipsis at the start keeps the file name visible */
-    text-align: left;
+    text-align: right;
     -webkit-user-select: text;
     user-select: text;
 }
